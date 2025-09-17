@@ -1,8 +1,8 @@
-OTU GREEN LICENSE FOR MATHEMATICAL & COMPUTATIONAL WORK
+OTU GREEN LICENSE
 (“OTU GL v4” — Modified MIT with Patent Grant, Ethical Conditions, and Anti-Abuse Terms)
 Version 4 — 2025-09-17
 
-Copyright (c) 2024–2025 [YOUR NAME]
+Copyright (c) 2025 Student
 
 PURPOSE
 This License grants broad rights to use the Work while denying those rights to entities and uses that harm vulnerable beings or the biosphere.
