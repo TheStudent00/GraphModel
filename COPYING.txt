@@ -1,23 +1,73 @@
-OTU GREEN LICENSE FOR MATHEMATICAL WORK (MODIFIED MIT LICENSE) Version 2, 3 FEB 2024
+OTU GREEN LICENSE FOR MATHEMATICAL & COMPUTATIONAL WORK
+(“OTU GL v4” — Modified MIT with Patent Grant, Ethical Conditions, and Anti-Abuse Terms)
+Version 4 — 2025-09-17
 
-Copyright 2024 STUDENT (CANADA)
+Copyright (c) 2024–2025 [YOUR NAME]
 
-Permission is hereby granted, free of charge, to any person or entity obtaining a copy of this mathematical work and associated documentation (the "Work"), to deal in the Work without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Work, and to permit persons to whom the Work is furnished to do so, subject to the following conditions:
+PURPOSE
+This License grants broad rights to use the Work while denying those rights to entities and uses that harm vulnerable beings or the biosphere.
 
-1. Inclusion of Copyright Notice  
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Work.
+DEFINITIONS
+“Work” means the mathematical or computational work, including text, proofs, data, datasets, schemata, specifications, algorithms, models, source code, trained or untrained model parameters (“weights”), prompts, configuration files, documentation, and associated materials released under this License.
+“Contributor” means any copyright holder that publishes the Work or submits a Contribution.
+“Contribution” means any change or addition intentionally submitted to the Work by a Contributor.
+“Entity” means any individual or legal person, including parents, subsidiaries, affiliates, agents, and contractors acting on its behalf.
+“Prohibited Use” and “Prohibited Entity” are defined in §4.
+“Designated Harmful Regime (DHR)” means a state apparatus or occupying authority historically or currently responsible for genocide, crimes against humanity, or aggressive war, as recognized by widely accepted international law sources (e.g., the Nuremberg Principles, Rome Statute) or by authoritative tribunals; this explicitly includes the National Socialist regime in Germany (1933–1945). “Agent of a DHR” includes ministries, state-owned firms, and front organizations acting on behalf of a DHR.
 
-2. Restrictions Based on Ethical Use
+1. COPYRIGHT & PATENT LICENSE
+Subject to §2–§7, each Contributor grants any Entity that is not a Prohibited Entity a worldwide, non-exclusive, no-charge, royalty-free, perpetual, irrevocable (except as stated in §6) copyright license to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Work.
 
-- Fossil Fuel Industry Exclusion: This license expressly prohibits the use, modification, or distribution of the Work by entities directly involved in the extraction, production, or refining of fossil fuels. This exclusion does not apply to individual consumers purchasing fossil fuel energy for personal use, such as gasoline for personal vehicles.
+Subject to §2–§7, each Contributor also grants a worldwide, non-exclusive, no-charge, royalty-free, perpetual, irrevocable (except as stated in §6) patent license to make, have made, use, offer to sell, sell, import, and otherwise transfer the Work and Contributions, covering patent claims licensable by that Contributor that are necessarily infringed by their Contribution(s) alone or in combination with the Work.
 
-- Prohibition Against Support for Human Rights Violations:  
-  - War Crimes: Entities that have been formally charged or found guilty of war crimes by an internationally recognized court or tribunal within the past five years are prohibited from using, modifying, or distributing the Work. Entities accused of war crimes by the Office of the United Nations High Commissioner for Human Rights (ohchr.org) via public statements within the past five years are also prohibited from using, modifying, or distributing the Work.  
-  - Gender Discrimination: Entities formally charged or found guilty of systemic discrimination against women by an internationally recognized court or tribunal within the past five years are prohibited from using, modifying, or distributing the Work. Entities accused of systemic discrimination against women by the Office of the United Nations High Commissioner for Human Rights (ohchr.org) via public statements within the past five years are prohibited from using, modifying, or distributing the Work.  
-  - Human Rights Violators: Entities formally charged or found guilty of systemic human rights violations by an internationally recognized court or tribunal within the past five years are prohibited from using, modifying, or distributing the Work. Entities accused of human rights violations by the Office of the United Nations High Commissioner for Human Rights (ohchr.org) via public statements within the past five years are prohibited from using, modifying, or distributing the Work.
+2. NOTICE
+The copyright notice and this License must be included in all copies or substantial portions of the Work.
 
-3. Compliance Verification  
-Users of the Work agree to comply with these restrictions and to perform due diligence to ensure that the Work is not provided to any entity prohibited by this license. If the copyright holder becomes aware of a violation, the copyright holder reserves the right to revoke the license granted to the violating party.
+3. CONTRIBUTIONS (INBOUND = OUTBOUND)
+Unless stated otherwise in writing, any Contribution intentionally submitted to the Work by a Contributor is licensed under this License.
 
-4. Disclaimer of Warranty  
-THE WORK IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE WORK OR THE USE OR OTHER DEALINGS IN THE WORK.
+4. ETHICAL BOUNDARIES (SCOPE OF LICENSE)
+The licenses in §1 are granted only for uses that are not Prohibited Uses and only to Entities that are not Prohibited Entities.
+
+4.1 Prohibited Uses (non-exhaustive):
+  (a) Development, operation, or maintenance of fossil-fuel extraction, production, or refining (coal, crude oil, tar/bitumen, natural gas). Personal consumer use of energy/fuel is not prohibited.
+  (b) Design, deployment, or operation of systems intended for war crimes, crimes against humanity, or violations of Common Article 3 of the Geneva Conventions; or for targeted mass repression (e.g., mass surveillance to persecute protected groups).
+  (c) Weapons of mass destruction (nuclear, biological, chemical) or delivery systems primarily designed for such.
+  (d) Deliberate large-scale environmental destruction, including activities reasonably expected to accelerate climate catastrophe (e.g., new thermal coal developments).
+  (e) Training, tuning, or operating models to generate or direct the above.
+
+4.2 Prohibited Entities:
+  (a) DHRs and their Agents.
+  (b) Entities whose primary business (≥50% consolidated revenue) is fossil-fuel extraction/production/refining.
+  (c) Entities finally adjudicated within the last 5 years by an internationally recognized court/tribunal for war crimes, systemic human-rights violations, or systemic gender discrimination.
+  (d) Entities identified within the last 5 years by the Office of the UN High Commissioner for Human Rights (OHCHR) in public reports/statements as responsible for war crimes or systemic human-rights violations.
+
+4.3 Safe-Harbor Exceptions:
+  Research, journalism, documentation, accountability, whistleblowing, or harm-reduction efforts reasonably aimed at preventing, exposing, or mitigating the harms listed in §4 remain permitted for otherwise non-Prohibited Entities.
+
+5. DUE DILIGENCE & DOWNSTREAM
+Licensees must take reasonable, good-faith steps to avoid knowingly providing the Work to Prohibited Entities or for Prohibited Uses. Redistribution must include this License in full. No sublicense or contract may circumvent §4. If a Licensee learns of a violation downstream, it must cease further provision and, where practicable, notify the Contributor(s).
+
+6. TERMINATION, CURE, & PATENT RETALIATION
+6.1 Automatic Termination: This License terminates automatically for any Entity that:
+  (i) is or becomes a Prohibited Entity; or
+  (ii) engages in a Prohibited Use; or
+  (iii) violates §2 or §5 and fails to cure within 30 days after becoming aware; or
+  (iv) asserts or threatens a patent claim in litigation (including counterclaims/cross-claims) alleging that the Work or a Contribution infringes a patent (“Patent Assertion”).
+6.2 Reinstatement: For §6.1(iii), the license reinstates automatically upon cure within 30 days. For §6.1(iv), reinstatement requires written consent from all affected Contributors.
+6.3 Reservation of Rights: Termination does not limit any other rights or remedies, including injunctive relief and damages.
+
+7. TRADEMARKS
+No trademark rights are granted, except as necessary for descriptive use.
+
+8. WARRANTY DISCLAIMER
+THE WORK IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
+
+9. LIMITATION OF LIABILITY
+IN NO EVENT SHALL ANY CONTRIBUTOR BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE WORK OR ITS USE.
+
+10. SEVERABILITY; NON-WAIVER; ANTI-AVOIDANCE
+If any provision is unenforceable in a jurisdiction, it shall be modified only as needed to become enforceable while preserving intent; the remainder stays effective. Failure to enforce is not a waiver. Any attempt to relicense, proxy, or structure transactions to evade §4 is void.
+
+11. INTERPRETATION
+“Reasonable, good-faith steps” in §5 means diligence proportional to the scale and risk of distribution. Examples include sanctions/ownership checks, supplier codes, and contractual pass-through. Ambiguities are to be resolved to effectuate the Purpose.
