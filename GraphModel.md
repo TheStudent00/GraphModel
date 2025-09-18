@@ -993,3 +993,263 @@ persistent gradient structure
 ## Canvas: Graph Model – HQ (v0)
 
 \[Verbatim content unavailable in this conversation. Open the HQ canvas here to auto-embed its full text.]
+
+
+# Archive 04
+
+# Core • SparseMaskedNN — Working Notes & Plan
+
+*Date:* 2025‑09‑17
+*Timezone:* America/Toronto
+
+---
+
+## Canonical Terms (locked-in)
+
+**Heat states** (3-level, lean):
+
+* **Cold** — masked, not under evaluation. `M=0`, no grads, no compute.
+* **Warm** — masked, being probed (prospective). `M=0`, but use shadow Δ on region R only, across several batches.
+* **Hot** — unmasked & committed. `M=1`, weights warm‑started from probe Δ, then trained with proximal L1.
+
+Optional 4-level variant (only if we need reporting granularity): **Cold → Cool → Warm → Hot**, where *Cool* = shortlisted but not yet probed.
+
+**Complexity counters**:
+
+* **Structural** `C_struct = sum(M)` (# of Hot cells; hard cap per object).
+* **Active** `C_active = count(|W_vals|>ε & M=1)` (# of lit cells; soft cap via prox‑L1 + pruning).
+
+**Objects:** Core, Connector. Growth decisions are independent per object. Hard rule: ≤ 2 paths (regions) per object per cycle.
+
+---
+
+## Sparse‑first Representation (TensorFlow‑friendly)
+
+* **Mask/structure (sparse):** `M_idx ∈ ℕ^{nnz×2}` (row, col) in COO, sorted/coalesced. Encodes Hot set.
+* **Weights (trainable):** `W_vals ∈ ℝ^{nnz}` aligned 1‑to‑1 with `M_idx`.
+* **Forward (dense inputs):**
+
+  ```python
+  W_sp = tf.sparse.reorder(tf.SparseTensor(M_idx, W_vals, [in_dim, out_dim]))
+  Y = tf.transpose(tf.sparse.sparse_dense_matmul(W_sp, tf.transpose(X)))  # [B, out]
+  ```
+* **Forward (sparse inputs S):** `Y = tf.sparse.sparse_dense_matmul(S, tf.sparse.to_dense(W_sp))` or keep weights dense+masked for this path; prefer true sparse weights at inference.
+
+**Why:** avoids dense Hadamard with masks; FLOPs scale with nnz; gradients flow only to `W_vals`. `M_idx` is non‑diff, edited by planner.
+
+---
+
+## Probing (Warm / Prospective)
+
+Goal: estimate value per complexity token before unmasking.
+
+**Two exact probe modes:**
+
+1. **Toggle‑mask probe:** build `M' = M` with candidate region `R_idx` added; keep `W_R=0`; forward/backward once to read grads on `R`.
+2. **Shadow‑Δ trick (preferred for rollouts):** keep base `M`; add `Δ_R` only on indices in `R` and compute with `K_eff = (M_idx,W_vals) ⊕ (R_idx, Δ_R)` (concatenation). Backprop hits only `Δ_R`.
+
+**Micro‑rollout:** 1–3 tiny steps on `Δ_R` with the same sparsity pressure we’ll use in training (prox‑L1). Evaluate mean ΔLoss over multiple fresh batches.
+
+---
+
+## Ranking & Selection
+
+**Prune‑side (Hot → drop)**
+
+* **Taylor prune score (fast):** `Score_c = 0.5 * v_c * W_c^2` (use Adam/RMS second moment `v_c` as curvature proxy). Rank ascending; prune smallest.
+* **LOO ΔLoss (gold standard on subset):** temporarily zero component/region; measure mean loss increase across `m` batches. Use to calibrate Taylor.
+* **Answer‑directed:** if a node’s “answer” is a particular state functional `u^T y`, prefer `| (u^T J)_c * W_c |` for ranking.
+
+**Grow‑side (Warm → Hot)**
+
+* **Shortlist (cheap, batch‑robust):** SNR of prospective gradients over `m` batches: `||mean g_R|| / (sqrt(var g_R)+ε)`; gate by `τ_snr`.
+* **Decide (micro‑rollout EI):** K tiny steps on `Δ_R`, compute `μ_R = mean ΔLoss`, `σ_R = std`, `a_R = count(|Δ_R|>ε)`.
+* **Score:** `Score_R = μ_R − βσ_R − λ_s|R| − λ_a a_R` (value‑per‑token, variance‑aware). Commit ≤ 2 regions (per object). Warm‑start `W_R ← Δ_R`.
+
+**Diversity constraints:** penalize spatial/output overlap during a single commit round; prefer coverage across outputs.
+
+---
+
+## State Machine (3‑level)
+
+* `Cold → Warm` (shortlist/probe).
+* `Warm → Hot` (commit mask; optional warm‑start `Δ_R`).
+* **Prune loop:** if `C_active` exceeds budget, zero smallest|W| within Hot; optionally move Hot→Cold to respect `C_struct`.
+
+**Prox‑L1:** after each optimizer step, `W_vals[M==1] ← soft_threshold(W_vals[M==1], λ)`. Encourages few Burning/“lit” entries while preserving Hot structure.
+
+---
+
+## Loss Landscape & Data
+
+* Expectation vs mini‑batch: `g_B` is unbiased but noisy; variance is anisotropic and ∝ 1/|B|. Use multi‑batch estimates for Warm probes.
+* Landscape is a **stack** over masks: continuous in `W_vals`, combinatorial in `M_idx`.
+
+---
+
+## Graph‑Node Integration (state/answer centric)
+
+* A node’s SparseMaskedNN updates the node state; messages are derived from state.
+* Rankings can be **loss‑centric** or **answer‑directed** (project onto the node’s state functional). Keep both options.
+* Per‑object independence: enforce budgets and selection per Core/Connector; disjoint probes.
+
+---
+
+## Minimal Control Pseudocode (reference)
+
+```python
+# PRUNE
+def prune_ranking(K_vals, V_moment, M_idx, eps):
+    # return list of (idx_row, score) sorted ascending
+    scores = []
+    for r,(i,j) in enumerate(M_idx):
+        w = K_vals[r]
+        if abs(w) > eps:
+            v = V_moment[i,j]
+            scores.append((r, 0.5 * v * (w*w)))
+    return sorted(scores, key=lambda x: x[1])
+
+# GROW — shortlist by SNR, decide by micro‑rollout
+```
+
+(Full RegionEvaluator / bandit UCB variant is in earlier notes; reuse when implementing.)
+
+---
+
+## Implementation Notes (TensorFlow)
+
+* `tf.sparse.sparse_dense_matmul` expects rank‑2 on both sides; for dense inputs use `Y = (W_sp @ X^T)^T`.
+* Keep `indices:int64`, `values:float32`; `tf.sparse.reorder` after editing structure.
+* Gradients flow to `W_vals` only; `M_idx` is non‑diff.
+* For masked‑dense experiments only, generate dense mask on demand; do not store dense masks for large layers.
+
+---
+
+## Decisions & Open TODOs
+
+* **Decision:** three heat states (Cold/Warm/Hot) and two counters (`C_struct`, `C_active`).
+* **Decision:** mask is truly sparse (`M_idx`), not a dense bitmap.
+* **Decision:** probe via shadow Δ and micro‑rollouts; commit ≤ 2 regions per object per cycle.
+* **TODO‑1:** identity initialization for layers (square & non‑square; conv vs MLP; block‑diag identity for multi‑channel/state).
+* **TODO‑2:** finalize pruning thresholds `ε` and budgets per object.
+* **TODO‑3:** answer‑directed ranking option (define `u` per node).
+* **TODO‑4:** implement RegionEvaluator + planner hooks in training loop; cache per‑column slices for fast edits.
+
+---
+
+> Snapshot saved to serve as the working spec for Core’s SparseMaskedNN growth/prune planner and data structures. Use this as the stable reference; we will iterate inline as we refine identity initialization and the rollout/bandit heuristics.
+
+---
+---
+
+# Core • Progress Update — Probes, SNR, and Distribution‑Aware Heads
+
+*Date:* 2025‑09‑17
+*Timezone:* America/Toronto
+
+This document records decisions and refinements made after the prior snapshot “Core • SparseMaskedNN — Working Notes & Plan”. It focuses on: (1) probe regimes (freezing vs relaxed), (2) SNR as a minimalist shortlist heuristic, and (3) an architecture‑level path for learning *distributions* (multi‑modal outputs) with memory, without introducing arbitrary penalties.
+
+---
+
+## 1) Probe regimes (attribution vs realism)
+
+Let parameters split into **H** (Hot) and **R** (candidate Warm).
+
+* **Frozen probe (default):** Optimize a *shadow* Δ only on R while H stays fixed at θ\_H⁰.
+
+  * Pros: clean attribution; deterministic accounting of value‑per‑token; stable.
+  * Cons: underestimates benefit when H↔R synergy matters.
+
+* **Relaxed probe (optional):** Allow tiny co‑adaptation of H via a trust region (few inner steps, small ‖Δ\_H‖² weight). Approximates the Schur‑complement effect of cross‑curvature while preserving attribution. Use **only if** frozen probes systematically underpredict realized gains.
+
+* **Full joint probe (rejected):** Lets H and R move freely during a probe. Attribution breaks; noisy decisions. Not used.
+
+**Decision:** Start **Frozen**; upgrade to **Relaxed** only on evidence (gap between probe gain and realized gain post‑commit).
+
+---
+
+## 2) SNR — minimalist, batch‑robust shortlist
+
+For a candidate region R, collect *prospective* gradients across m independent mini‑batches with the base frozen.
+
+* Mean: \bar g\_R = (1/m) Σ g\_R^(t)
+* Variance proxy: s\_R² = (1/(m−1)) Σ ‖g\_R^(t) − \bar g\_R‖²
+* **SNR:** ‖\bar g\_R‖ / (√(s\_R²) + ε)
+
+Use SNR **only** to rank/shortlist; the decision still comes from a short **micro‑rollout** (K tiny steps on the shadow Δ\_R, fresh batches) measured by average ΔLoss, its variance, and win‑rate. No regularizers; just evidence under a fixed token budget.
+
+Preconditioning (dimensionless): do SNR on Adam‑style normalized grads g/√(v+ε) when available.
+
+---
+
+## 3) Distribution‑aware behavior (multi‑modal outputs with memory)
+
+**Goal:** Enable a node to (1) detect when similar inputs map to multiple plausible outputs, and (2) *sample* from a learned distribution while tracking and matching target frequencies over time.
+
+### 3.1 Minimal components (no arbitrary penalties)
+
+* **Deterministic state head (baseline):** identity‑by‑default SparseMaskedNN mapping; no stochasticity engaged.
+* **Distribution Head (DH, optional):** a sparse, upgradable head that parameterizes an output distribution conditioned on the node’s state.
+
+  * **Discrete outputs:** categorical with logits per bucket. Complexity tokens = number of Hot buckets (nonzero logit paths).
+  * **Continuous outputs:** mixture‑of‑Gaussians (or quantile‑spline). Tokens = number of Hot components (or active knots).
+  * DH is **Cold** by default; engages only when evidence warrants.
+
+**Selection (evidence‑only):**
+
+1. **Ambiguity detector (lightweight):** on a buffer of cases with similar state (e.g., locality in latent space), check if residuals/disagreements are multi‑modal (e.g., bimodal histogram or increased conditional entropy). If ambiguous, nominate a DH region (e.g., add 1–2 buckets or 1 mixture component).
+2. **Probe:** Frozen micro‑rollout on the DH candidate (K tiny steps, fresh batches), evaluate ΔNegLogLik (or Δcalibration error on held‑out mini‑batches).
+3. **Commit ≤ 2 per object:** promote the best to Hot; warm‑start parameters from the probe Δ.
+
+Pruning mirrors this: remove the least valuable DH components by tiny LOO ΔNLL or Taylor on their parameters.
+
+### 3.2 Sampling with memory (matching frequencies)
+
+When DH is Hot, produce a sample **and** maintain a running calibration memory so long‑run frequencies match learned probabilities.
+
+* **Error‑feedback sampler (discrete):**
+
+  * Maintain an accumulator e per bucket: e ← e + p − 𝟙{sample==bucket}.
+  * Next sample uses logits adjusted by −κ·e (small κ). This is stochastic rounding with conservation: over time it drives empirical frequencies toward p without biasing single‑step probability too aggressively.
+
+* **Continuous outputs:**
+
+  * Sample from the mixture as usual; maintain a PIT (probability integral transform) buffer z=F\_Y(y). For a well‑calibrated model, z ∼ Uniform\[0,1]. Periodically run a simple KS check on z; if miscalibrated, nominate DH refinement (Warm) in the region of miss.
+
+**Decision rule (evidence, not regularization):** grow DH only when calibration error persists beyond statistical fluctuation (small two‑sample test on sliding windows) *and* the micro‑rollout shows NLL gain.
+
+### 3.3 Complexity accounting
+
+* **Weights:** nnz of SparseMaskedNN (excluding implicit identity if desired).
+* **Activation curvature:** count of Hot spline coefficients.
+* **Distribution head:** count of Hot buckets/components/knots.
+
+Hard caps per object; no penalty terms in the loss.
+
+---
+
+## 4) Spline activation with learnable complexity (recap)
+
+* Activation is identity at init; curvature is added via **sparse** hinge or spline coefficients (Hot only when committed).
+* Same probe/commit/prune cycle as weights.
+* Identity fast‑path: if no Hot/Warm deltas (weights or activation), the layer is a pure pass‑through (no compute).
+
+---
+
+## 5) Open design hooks (next passes)
+
+* Define a **minimal ambiguity detector**: e.g., rising conditional entropy in a small latent neighborhood, or a stable bimodal residual histogram. Keep it parameter‑light.
+* Choose DH parameterizations per variable type (categorical vs scalar continuous) and how tokens map to “one more bucket / one more component / a few more knots”.
+* Specify micro‑rollout measurements for DH: ΔNLL, win‑rate, held‑out transfer.
+* Finalize structural budgets for: weights, activation curvature, and DH components.
+
+---
+
+## 6) Operational defaults (initial)
+
+* Probe regime: **Frozen** (upgrade to **Relaxed** only if needed).
+* SNR shortlist: m=4 batches; micro‑rollout: K=2 steps; pick ≤2 Warm→Hot per object per cycle.
+* Identity everywhere until growth; compute only on Hot/Warm deltas.
+* No global penalties; decisions by evidence under hard budgets; prune only when over budget.
+
+> This update keeps the architecture assumption‑light and fully evidence‑driven, while opening a principled path to handle multi‑modal outputs and long‑run frequency matching without adding arbitrary regularization terms.
