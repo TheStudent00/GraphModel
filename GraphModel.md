@@ -1142,7 +1142,7 @@ def prune_ranking(K_vals, V_moment, M_idx, eps):
 ---
 ---
 
-# Core • Progress Update — Probes, SNR, and Distribution‑Aware Heads
+## Core • Progress Update — Probes, SNR, and Distribution‑Aware Heads
 
 *Date:* 2025‑09‑17
 *Timezone:* America/Toronto
@@ -1253,3 +1253,100 @@ Hard caps per object; no penalty terms in the loss.
 * No global penalties; decisions by evidence under hard budgets; prune only when over budget.
 
 > This update keeps the architecture assumption‑light and fully evidence‑driven, while opening a principled path to handle multi‑modal outputs and long‑run frequency matching without adding arbitrary regularization terms.
+
+---
+---
+
+## Core • Save State — Today’s Updates
+
+*Date:* 2025‑09‑18
+*Timezone:* America/Toronto
+
+This captures **everything added/decided today** since the prior save.
+
+---
+
+## A) Design Tenets (reaffirmed)
+
+* **Evidence over penalties:** decisions via short probes + held‑out checks; **no L1/L0 in loss**.
+* **Hard budgets:** structural + active token caps per object/depth.
+* **Identity‑first:** compute only deltas; skip work when layer is exact identity.
+* **Concise comms + concept map:** keep your phrasing; new terms get one‑line on‑ramps.
+
+---
+
+## B) Probes & SNR (minimalist)
+
+* **Frozen probe (default):** only tweak Warm candidate; clean attribution.
+* **Relaxed probe (optional):** tiny trust‑region on Hot if frozen probes underpredict realized gains.
+* **SNR (shortlist only):** across m batches,
+  `SNR_R = ||mean(g_R)|| / (sqrt(var(g_R)) + ε)` on **prospective** grads.
+* **Decision metric:** average ΔLoss on fresh batches (+ tie‑breakers: higher win‑rate, lower variance).
+
+---
+
+## C) Spline Activation with Learnable Complexity
+
+* **Activation = identity + sparse curvature** (hinge/spline terms). Start with zero coefficients.
+* Growth/prune uses the same **Warm → Hot** and evidence rule as weights.
+* **Continuous gates** deemed optional; we stay discrete for now (probe provides continuity).
+
+---
+
+## D) Distribution Awareness (general + Core fit)
+
+* **Philosophy:** when a situation admits multiple sensible outcomes, add small optional “bins/components” to represent alternatives and their frequencies.
+* **Distribution Head (DH):** optional add‑on; **Cold by default**. Grow in tiny steps (one bin/component at a time) only on evidence; prune when weak.
+* **Memoryless sampling:** dropped sampling‑with‑memory. Use i.i.d. sampling or deterministic selection; monitor calibration offline and trigger DH refinement if needed.
+* **Multi‑layer DH (nascent everywhere):** allowed at any depth but: (i) **late‑sample** (no internal sampling; learn in expectation), (ii) **≤1 DH add per depth per cycle**, (iii) strict budgets, (iv) reversible via Cooling.
+* **Ambiguity signals:** top‑down hint from higher modules or local repeated split outcomes (bimodal residuals / rising conditional entropy).
+
+---
+
+## E) Helping Struggling Hot Regions (local assistance)
+
+* **Flags:** low gradient stability, stall (big residuals with tiny progress), or
+  `help_ratio = ||g_cold*|| / (||g_hot|| + ε)` large (prospective frontier grads overshadow current Hot grads).
+* **Action:** shortlist Cold frontier by SNR → probe top‑1 → commit ≤1 helper if ΔLoss gain is consistent.
+
+---
+
+## F) Clone‑and‑Split (load sharing without disruption)
+
+* **Goal:** split an overloaded unit/block without changing outputs at t=0.
+* **Activation‑agnostic recipe (kept):**
+
+  1. **Duplicate** the neuron/block (same incoming weights/bias).
+  2. **Halve downstream weights** (next‑layer connections) across the two clones.
+  3. Optional tiny asymmetry (noise or staggered updates); allow different growth frontiers.
+  4. **Keep** if ΔLoss↑ and stability↑; else **re‑merge** (sum back, drop clone) to reclaim tokens.
+* **Why not literal equal upstream split with nonlinear act:** `A(W₁+W₂) ≠ A(W₁)+A(W₂)` in general. Downstream halving preserves function for any activation.
+* **Partition alternative (when splitting sparse supports):** if you do split supports, assign by descending |weight| alternating to balance mass; ensure sums match the original.
+
+---
+
+## G) Lifecycle Extensions (optional)
+
+* Besides 3‑state (Cold/Warm/Hot), we can use **transition states**: **Cooling** (graceful demotion) & **Warming** (probe). Cooling triggers when a Hot piece is rarely used and removal barely impacts held‑out error.
+
+---
+
+## H) Minimal Loops (today’s defaults)
+
+* **Per object/depth per cycle:**
+
+  1. Shortlist by SNR (m≈4).
+  2. Probe K≈2 tiny steps (Frozen).
+  3. Commit ≤2 (objects) / ≤1 (per depth DH).
+  4. Cooling check on weak/unused pieces.
+
+---
+
+## I) Open Questions / Next Steps
+
+* Identity init details for spline activations (knot grid defaults; variance‑preserving scales).
+* Ambiguity detector: minimal, parameter‑light definition for local split residuals.
+* Per‑depth token budgets (initial values) and simple hysteresis for Cooling.
+* Tiny DH schemas (categorical vs scalar continuous) with probe routines.
+
+
