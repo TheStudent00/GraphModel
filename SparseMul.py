@@ -112,10 +112,10 @@ import tensorflow as tf
 import numpy as np
 
 def vectorized_compute_sparse_c(A_sp: tf.SparseTensor, B_sp: tf.SparseTensor) -> tf.SparseTensor:
-    """
+    ""
     A vectorized TensorFlow implementation of the on-the-fly sparse
     matrix multiplication algorithm.
-    """
+    ""
     # 1. Deconstruct the sparse tensors into their essential components.
     # This is equivalent to your pre-processed dictionaries.
     A_indices, A_values = A_sp.indices, A_sp.values
