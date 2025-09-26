@@ -69,7 +69,7 @@ def get_sparse_product_map(sparse_A_cols_dict, sparse_B_rows_dict):
           sparse_C_computation_coordinates[(sparse_A_col_value, sparse_B_row_value)].add(new_pair)
   return sparse_C_computation_coordinates
 
-def compute_sparse_C(sparse_C_computation_coordinates, dense_A, dense_B, dense_result=False):
+def compute_sparse_C_with_map(sparse_C_computation_coordinates, dense_A, dense_B, dense_result=False):
   if dense_result:
     dense_C = np.zeros_like(dense_A)
     for sparse_C_key in sparse_C_computation_coordinates:
@@ -90,3 +90,90 @@ def compute_sparse_C(sparse_C_computation_coordinates, dense_A, dense_B, dense_r
     return sparse_C, dense_C
   else:
     return sparse_C
+
+def compute_sparse_C(sparse_A, sparse_B, sparse_A_cols_dict, sparse_B_rows_dict):
+  sparse_C = {}
+  for sparse_A_col_key in sparse_A_cols_dict:
+    if sparse_A_col_key in sparse_B_rows_dict:
+      for sparse_A_col_value in sparse_A_cols_dict[sparse_A_col_key]:
+        for sparse_B_row_value in sparse_B_rows_dict[sparse_A_col_key]:
+          if (sparse_A_col_value, sparse_B_row_value) not in sparse_C:
+            sparse_C[(sparse_A_col_value, sparse_B_row_value)] = 0
+          sparse_A_elem = sparse_A[(sparse_A_col_value, sparse_A_col_key)]
+          sparse_B_elem = sparse_B[(sparse_A_col_key, sparse_B_row_value)]
+          summand = sparse_A_elem * sparse_B_elem
+          sparse_C[(sparse_A_col_value, sparse_B_row_value)] += summand
+  return sparse_C
+
+
+"""
+Gemini's respectable effort to 
+import tensorflow as tf
+import numpy as np
+
+def vectorized_spgemm(A_sp: tf.SparseTensor, B_sp: tf.SparseTensor) -> tf.SparseTensor:
+    """"""
+    Performs sparse-sparse matrix multiplication using a vectorized approach in TensorFlow.
+
+    This algorithm translates the logic of an outer-product expansion into
+    vectorized tensor operations.
+    """"""
+    # 1. Deconstruct the sparse tensors into their components.
+    A_indices, A_values = A_sp.indices, A_sp.values
+    B_indices, B_values = B_sp.indices, B_sp.values
+
+    # Get the row and column indices for A and B separately.
+    A_i, A_k = A_indices[:, 0], A_indices[:, 1]
+    B_k, B_j = B_indices[:, 0], B_indices[:, 1]
+
+    # 2. Find all valid multiplication pairs via broadcasting.
+    # This creates a boolean matrix where True indicates that A's column index
+    # matches B's row index (A_k == B_k).
+    # This is the vectorized "symbolic" or "mapping" phase.
+    matching_k = tf.equal(A_k[:, None], B_k[None, :])
+    
+    # Get the indices of the matching pairs. `match_indices` will have shape [num_products, 2],
+    # where each row is a pair of indices (index_in_A, index_in_B).
+    match_indices = tf.where(matching_k)
+    A_match_idx, B_match_idx = match_indices[:, 0], match_indices[:, 1]
+
+    # 3. Gather the data for the products.
+    # Get the i and j coordinates for the output matrix C.
+    C_i = tf.gather(A_i, A_match_idx)
+    C_j = tf.gather(B_j, B_match_idx)
+    C_indices_pre_sum = tf.stack([C_i, C_j], axis=1)
+
+    # Gather the values from A and B that need to be multiplied.
+    A_vals_matched = tf.gather(A_values, A_match_idx)
+    B_vals_matched = tf.gather(B_values, B_match_idx)
+    
+    # 4. Calculate the product values.
+    C_vals_pre_sum = A_vals_matched * B_vals_matched
+
+    # 5. Aggregate results for the same output coordinate.
+    # Many (i, j) pairs in C_indices_pre_sum will be duplicates. We need to
+    # sum the values that correspond to the same (i, j) location.
+
+    # First, find the unique (i, j) coordinates and get integer IDs for each unique pair.
+    unique_C_indices, segment_ids = tf.unique(
+        tf.cast(C_i, tf.int64) * tf.cast(B_sp.dense_shape[1], tf.int64) + tf.cast(C_j, tf.int64)
+    )
+
+    # Use segment_sum to sum the values for each unique coordinate.
+    summed_C_values = tf.math.segment_sum(C_vals_pre_sum, segment_ids)
+
+    # Convert the unique integer IDs back to (row, col) coordinates.
+    final_C_i = unique_C_indices // tf.cast(B_sp.dense_shape[1], tf.int64)
+    final_C_j = unique_C_indices % tf.cast(B_sp.dense_shape[1], tf.int64)
+    final_C_indices = tf.stack([final_C_i, final_C_j], axis=1)
+
+    # 6. Reconstruct the final sparse tensor.
+    output_shape = (A_sp.dense_shape[0], B_sp.dense_shape[1])
+    C_sp = tf.SparseTensor(
+        indices=tf.cast(final_C_indices, tf.int64),
+        values=summed_C_values,
+        dense_shape=tf.cast(output_shape, tf.int64)
+    )
+    
+    return tf.sparse.reorder(C_sp)
+"""
