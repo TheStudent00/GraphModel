@@ -1,6 +1,5 @@
 """
-  about as optimized as generalized sparse-sparse-multiplication can be within the TensorFlow library
-    perhaps any Python library with GPU-API
+  about as optimized as generalized sparse-sparse-multiplication can be within the TensorFlow/GPU API
 """
 
 import tensorflow as tf
