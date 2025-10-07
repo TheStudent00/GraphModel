@@ -1576,3 +1576,284 @@ def prune_ranking(K_vals, V_moment, M_idx, eps):
 * **TODO-7 (new):** add soft‑tying option for stencils (group Lasso or low‑rank factorization) to reduce params when many stencils align.
 
 ---
+
+---
+---
+
+> **Decision Update (2025‑09‑18):** Drop sampling‑with‑memory for the Distribution Head. Default is **memoryless** sampling (i.i.d.) or deterministic selection (argmax/mean). Calibration is measured offline; if persistent miscalibration appears, propose DH refinement via probes—no runtime biasing.
+
+# Core • SparseMaskedNN — Working Notes & Plan
+
+*Date:* 2025‑09‑17
+*Timezone:* America/Toronto
+
+---
+
+## Canonical Terms (locked-in)
+
+**Heat states** (3-level, lean):
+
+* **Cold** — masked, not under evaluation. `M=0`, no grads, no compute.
+* **Warm** — masked, being probed (prospective). `M=0`, but use shadow Δ on region R only, across several batches.
+* **Hot** — unmasked & committed. `M=1`, weights warm‑started from probe Δ, then trained with proximal L1.
+
+Optional 4-level variant (only if we need reporting granularity): **Cold → Cool → Warm → Hot**, where *Cool* = shortlisted but not yet probed.
+
+**Complexity counters**:
+
+* **Structural** `C_struct = sum(M)` (# of Hot cells; hard cap per object).
+* **Active** `C_active = count(|W_vals|>ε & M=1)` (# of lit cells; soft cap via prox‑L1 + pruning).
+
+**Objects:** Core, Connector. Growth decisions are independent per object. Hard rule: ≤ 2 paths (regions) per object per cycle.
+
+---
+
+## Sparse‑first Representation (TensorFlow‑friendly)
+
+* **Mask/structure (sparse):** `M_idx ∈ ℕ^{nnz×2}` (row, col) in COO, sorted/coalesced. Encodes Hot set.
+* **Weights (trainable):** `W_vals ∈ ℝ^{nnz}` aligned 1‑to‑1 with `M_idx`.
+* **Forward (dense inputs):**
+
+  ```python
+  W_sp = tf.sparse.reorder(tf.SparseTensor(M_idx, W_vals, [in_dim, out_dim]))
+  Y = tf.transpose(tf.sparse.sparse_dense_matmul(W_sp, tf.transpose(X)))  # [B, out]
+  ```
+* **Forward (sparse inputs S):** `Y = tf.sparse.sparse_dense_matmul(S, tf.sparse.to_dense(W_sp))` or keep weights dense+masked for this path; prefer true sparse weights at inference.
+
+**Why:** avoids dense Hadamard with masks; FLOPs scale with nnz; gradients flow only to `W_vals`. `M_idx` is non‑diff, edited by planner.
+
+---
+
+## Probing (Warm / Prospective)
+
+Goal: estimate value per complexity token before unmasking.
+
+**Two exact probe modes:**
+
+1. **Toggle‑mask probe:** build `M' = M` with candidate region `R_idx` added; keep `W_R=0`; forward/backward once to read grads on `R`.
+2. **Shadow‑Δ trick (preferred for rollouts):** keep base `M`; add `Δ_R` only on indices in `R` and compute with `K_eff = (M_idx,W_vals) ⊕ (R_idx, Δ_R)` (concatenation). Backprop hits only `Δ_R`.
+
+**Micro‑rollout:** 1–3 tiny steps on `Δ_R` with the same sparsity pressure we’ll use in training (prox‑L1). Evaluate mean ΔLoss over multiple fresh batches.
+
+---
+
+## Ranking & Selection
+
+**Prune‑side (Hot → drop)**
+
+* **Taylor prune score (fast):** `Score_c = 0.5 * v_c * W_c^2` (use Adam/RMS second moment `v_c` as curvature proxy). Rank ascending; prune smallest.
+* **LOO ΔLoss (gold standard on subset):** temporarily zero component/region; measure mean loss increase across `m` batches. Use to calibrate Taylor.
+* **Answer‑directed:** if a node’s “answer” is a particular state functional `u^T y`, prefer `| (u^T J)_c * W_c |` for ranking.
+
+**Grow‑side (Warm → Hot)**
+
+* **Shortlist (cheap, batch‑robust):** SNR of prospective gradients over `m` batches: `||mean g_R|| / (sqrt(var g_R)+ε)`; gate by `τ_snr`.
+* **Decide (micro‑rollout EI):** K tiny steps on `Δ_R`, compute `μ_R = mean ΔLoss`, `σ_R = std`, `a_R = count(|Δ_R|>ε)`.
+* **Score:** `Score_R = μ_R − βσ_R − λ_s|R| − λ_a a_R` (value‑per‑token, variance‑aware). Commit ≤ 2 regions (per object). Warm‑start `W_R ← Δ_R`.
+
+**Diversity constraints:** penalize spatial/output overlap during a single commit round; prefer coverage across outputs.
+
+---
+
+## State Machine (3‑level)
+
+* `Cold → Warm` (shortlist/probe).
+* `Warm → Hot` (commit mask; optional warm‑start `Δ_R`).
+* **Prune loop:** if `C_active` exceeds budget, zero smallest|W| within Hot; optionally move Hot→Cold to respect `C_struct`.
+
+**Prox‑L1:** after each optimizer step, `W_vals[M==1] ← soft_threshold(W_vals[M==1], λ)`. Encourages few Burning/“lit” entries while preserving Hot structure.
+
+---
+
+## Loss Landscape & Data
+
+* Expectation vs mini‑batch: `g_B` is unbiased but noisy; variance is anisotropic and ∝ 1/|B|. Use multi‑batch estimates for Warm probes.
+* Landscape is a **stack** over masks: continuous in `W_vals`, combinatorial in `M_idx`.
+
+---
+
+## Graph‑Node Integration (state/answer centric)
+
+* A node’s SparseMaskedNN updates the node state; messages are derived from state.
+* Rankings can be **loss‑centric** or **answer‑directed** (project onto the node’s state functional). Keep both options.
+* Per‑object independence: enforce budgets and selection per Core/Connector; disjoint probes.
+
+---
+
+## Minimal Control Pseudocode (reference)
+
+```python
+# PRUNE
+def prune_ranking(K_vals, V_moment, M_idx, eps):
+    # return list of (idx_row, score) sorted ascending
+    scores = []
+    for r,(i,j) in enumerate(M_idx):
+        w = K_vals[r]
+        if abs(w) > eps:
+            v = V_moment[i,j]
+            scores.append((r, 0.5 * v * (w*w)))
+    return sorted(scores, key=lambda x: x[1])
+
+# GROW — shortlist by SNR, decide by micro‑rollout
+```
+
+(Full RegionEvaluator / bandit UCB variant is in earlier notes; reuse when implementing.)
+
+---
+
+## Implementation Notes (TensorFlow)
+
+* `tf.sparse.sparse_dense_matmul` expects rank-2 on both sides; for dense inputs use `Y = (W_sp @ X^T)^T`.
+* Keep `indices:int64`, `values:float32`; `tf.sparse.reorder` after editing structure.
+* Gradients flow to `W_vals` only; `M_idx` is non-diff.
+* For masked-dense experiments only, generate dense mask on demand; do not store dense masks for large layers.
+* **Δ-state logging (new):** use a ring buffer of sparse deltas per step: `Δs_t = state_t − state_{t−1}` with timestamps and batch tags. Prefer COO indices aligned with Hot mask; coalesce per K steps. For GPU-friendly writes, buffer per-output-column then flush.
+
+---
+
+## State History as Differentials (Δ-state log)
+
+**Why:** align with dynamical-systems view; make temporal structure observable (finite-difference signals, candidate ODE/PDE discovery, drift detection) without storing full snapshots.
+
+**What to store (minimal):**
+
+* `t_k` (step index or wall-clock), optional batch id.
+* `Δstate_k` (sparse): same index space as node state; record only entries |Δ|>ε.
+* Optional: `Δinputs_k`/`Δoutputs_k` if needed for identifiability.
+
+**How it’s used:**
+
+* **Reconstruction:** `state_t = state_0 + Σ_{k≤t} Δstate_k` (on demand).
+* **Signals:** finite differences/lagged features for probes (e.g., trend, curvature); SNR for change-points.
+* **DE discovery (optional):** feed `(state_t, Δstate_t/Δt)` to a symbolic/linear regressor on a fixed library of candidate operators (spatial grads, products); only as a tool, not in the training loss.
+
+**Budgets & controls:**
+
+* Keep a rolling horizon `H` (e.g., last 128 steps) with coalescing; hard cap on nnz per horizon.
+* Gate logging to **Hot** regions or fronts under evaluation to control cost.
+* Toggle via flags per node: `log_deltas=True`, `epsilon_delta`, `horizon_steps`.
+
+**Why not full snapshots:**
+
+* Δs are cheaper (sparser), compress long quiescent periods, and expose dynamics directly.
+
+---
+
+## Innate Convolution via Perceptron‑Local Sparse Weight Matrices (new)
+
+**Premise:** give each perceptron a *local* 2‑D weight matrix over its input neighborhood (not just a 1‑D vector). Keep this matrix **sparse and mask‑controlled** so the perceptron can *learn* convolution‑like structure rather than having it baked in.
+
+**Why this is valuable:**
+
+* **Emergent convolution:** with a local stencil that can grow (Cold→Warm→Hot), the perceptron can discover translational motifs and edge/texture detectors without a hard‑coded convolution layer. Tying is optional; untied weights allow pattern diversity, and later we can add soft tying for efficiency.
+* **Zero cost at start:** begin with an identity‑like or near‑empty stencil (very few Hot entries). Capacity increases only when Warm probes show value.
+* **Reuse our static sparse multiplier:** the neighborhood stencil per perceptron is a fixed pattern for many steps. We precompute `output_coordinate_list`, `a_value_index_for_path`, `b_value_index_for_path`, `segment_id_for_path`, then run fast gather→multiply→grouped‑sum. No dynamic coalescing.
+* **Localized growth:** planner grows per‑perceptron neighborhoods where Δ‑signals and error heat are strongest, instead of global, dense expansion.
+
+**Design sketch:**
+
+* **Indexing:** represent each perceptron’s 2‑D stencil as a block of indices inside the global mask. Prefer block‑sparse tiles (per output unit) so memory accesses are local.
+* **Initialization:** identity‑like (center weight = 1, others 0) or tiny Laplacian seed; keep activation as identity spline initially.
+* **Optional tying:** later, add a tying map that groups similar stencils; learn a small set of shared kernels while keeping exceptions untied where needed.
+
+## Dense Crossover Policy (new)
+
+**Goal:** automatically switch a layer (or a perceptron block) from sparse to dense when dense math is cheaper.
+
+**Signals to monitor (per layer or block):**
+
+* **Density estimate:** `density = active_nonzeros / total_entries`.
+* **Batch amplification:** effective flop savings shrink as batch size grows; include `batch_size` in the decision.
+* **Path count:** `path_count` from the static map; cost scales with this, not matrix size.
+
+**Simple rule of thumb to start:**
+
+* If `density < 0.05` → stay sparse.
+* If `0.05 ≤ density ≤ 0.2` → compare costs once per N steps:
+
+  * `cost_sparse ≈ α * path_count` (α accounts for gathers and reduction)
+  * `cost_dense ≈ β * (m * k * n)` (β from a one‑time micro‑benchmark on current device)
+    Switch if `cost_dense < cost_sparse` for several consecutive checks.
+* If `density > 0.2` → prefer dense unless structure is block‑regular (then keep block‑sparse).
+
+**Granularity:** allow mixed mode—dense for hotspots, sparse elsewhere. Maintain separate masks and kernels per block.
+
+**Accounting:** when switching a block to dense, update `C_struct` and `C_active` to reflect the new representation; keep a cooldown to avoid thrash.
+
+## Planner Hooks (new)
+
+* **Warm probe for stencil growth:** test adding rings or arms around the current stencil; score via micro-rollouts and Δ-state SNR.
+* **Cooling/Prune:** if a perceptron’s stencil stays quiet (low Δ-state, low gradient norm), cool outer cells first, then inner.
+* **Clone‑and‑halve for overloaded units:** as before, but preserve local stencil geometry; downstream 0.5 scalers stay in place.
+
+---
+
+## Stencil Dynamics: Gravity, Velocity, Curvature (new)
+
+**Goal:** let similar stencils attract and optionally merge, while preserving freedom to diverge when data justify it.
+
+**Fields & thresholds (learned or tuned):**
+
+* `gravity_strength η_g` — base pull.
+* `attach_threshold τ_attach` — start applying pull when similarity exceeds this.
+* `merge_horizon τ_merge` — event‑horizon for merge (soft‑tying) decisions.
+* `escape_threshold τ_escape` — residual size to break a tie.
+* `flat_radius R_flat` — beyond this distance, treat space as flat (no interaction) for efficiency.
+
+**Similarity / distance:** cosine similarity on Hot coordinates (optionally per ring). Distance `d(u,v)=1−sim(u,v)`.
+
+**Velocity update (per step or per probe):**
+
+* Maintain a stencil velocity `v_u`.
+* Compute target direction toward nearest eligible center `ĉ` (max similarity above `τ_attach`).
+* Curvature modulation `κ_u` from a cheap proxy (e.g., gradient‑direction variance or diagonal moment): dampen velocity in high‑curvature zones.
+* Update:
+
+  ```
+  v_u ← μ v_u + (1−μ) · clip(ĉ − w_u, max_norm)
+  v_u ← (1 − κ_u) · v_u
+  w_u ← w_u + η_g · v_u  # only on Hot coords; project onto mask
+  ```
+* Hard separation: if `d(u,ĉ) < d_min` but `τ_merge` not met, apply a small repulsive term to prevent premature collapse.
+
+**Merging (event horizon):** when `sim(u,ĉ) ≥ τ_merge` and a tiny held‑out check improves loss, switch to soft‑tying:
+
+```
+ w_u = c + r_u  # center + residual
+ penalty: λ_res · ||r_u||_1
+```
+
+Centers update from members; any unit escapes if `||r_u||` exceeds `τ_escape` with loss improvement.
+
+**Flat‑space approximation:** if `d(u,v) > R_flat` (or similarity below a small floor), ignore interactions entirely to avoid global all‑pairs work.
+
+**Diversity filter (fast):** non‑maximum suppression within a neighborhood; keep best SNR candidate and cool near‑duplicates.
+
+**Accounting:** tied units count as one center + residual nnz in `C_active`. Cooling targets residuals first.
+
+---
+
+## Dense‑Compute / Sparse‑Semantics Layer (note)
+
+Implement perceptron blocks as packed dense tiles with gather lists (scanline order). Runtime uses dense GEMV/GEMM per block; planner still reasons in nnz/masks. Switch per block to fully dense under the crossover policy.
+
+---
+
+## Decisions & Open TODOs
+
+* **Decision:** three heat states (Cold/Warm/Hot) and two counters (`C_struct`, `C_active`).
+* **Decision:** mask is truly sparse (`M_idx`), not a dense bitmap.
+* **Decision:** probe via shadow Δ and micro‑rollouts; commit ≤ 2 regions per object per cycle.
+* **NEW Decision:** add optional **Δ‑state logging** per node with tight budgets (off by default; on for experiments).
+* **NEW Decision:** include **perceptron‑local sparse stencils** to enable emergent convolution.
+* **NEW Decision:** add a **dense crossover policy** with device‑measured α, β.
+* **TODO-1:** identity initialization for layers (square & non‑square; block‑diag identity for multi‑channel/state).
+* **TODO-2:** finalize pruning thresholds `epsilon` and budgets per object.
+* **TODO-3:** answer‑directed ranking option (define `u` per node).
+* **TODO-4:** implement RegionEvaluator + planner hooks in training loop; cache per‑column slices for fast edits.
+* **TODO-5:** Δ‑log reader for finite‑difference features and DE‑candidate scorer.
+* **TODO-6 (new):** per‑device micro‑bench to estimate `α, β` and validate crossover thresholds.
+* **TODO-7 (new):** add soft‑tying option for stencils (group Lasso or low‑rank factorization) to reduce params when many stencils align.
+
+---
+
