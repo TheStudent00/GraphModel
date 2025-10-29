@@ -68,6 +68,32 @@ class Memory:
         recency, compression curvature, and space complexity are learnable
         includes tracing for optimization
     """
+    def __init__(self):
+        self.compressor_core = Core()
+        self.uncompressed_memories = None
+        self.compressed_memories = None
+        self.space_complexity = None
+        self.space_complexity_limit = None
+        
+    def store(self, new_memory):
+        """
+            total_size = new_memory.shape + self.uncompress_memories.shape + self.compressed_memories.shape
+            if total_size > self.space_complexity_limit:
+                compressed_old_memories, uncompressed_old_memories = self.compress()
+                self.update_uncompressed(new_memory, uncompressed_old_memories)
+                self.update_compressed(compressed_old_memories)
+            else:
+                self.update_uncompressed(new_memory, uncompressed_old_memories)
+        """
+    
+    def update_uncompressed(self):
+        pass
+
+    def update_compressed(self):
+        pass
+
+    def compress(self):
+        pass
 
 
 class Module:
