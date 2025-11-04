@@ -8,6 +8,45 @@ class Complexity:
         self.space_complexity = None
         self.space_complexity_tokens = None
 
+class SplineLUT:
+
+    def __init__(self):
+        self.squared_LUT = None
+        self.cubed_LUT = None
+
+    def __call__(self, x_key):
+        squared_value = self.squared_LUT[x_input]
+        cubed_value = self.cubed_LUT[x_input]
+        return (squared_value, cubed_value)
+
+
+class Feature:
+    """
+        to resolve input/output size mismatching the following represents the
+        monotonic curve (defined smoothly with splines) of a large feature vector
+        with values sorted from largest to smallest.
+
+        the concept leverages the idea of sorting parameters and using a learned
+        permutation matrix (dense while learning, sparse in use) on the input 
+        vectors to correctly map elements to their optimal parameters.
+
+        it also leverages the idea of a pseudo-continuous feature curvature and
+        enabling expandability into any arbitrary size of input vector. there are
+        practical limitations and the SplineLUT attempts to reduce the need to
+        constantly compute squares/cubes on the fly, especially when the anticipated
+        resolutions are within reasonable bounds. the key-value returned are
+        then multiplied by their respective spline constants.
+
+        it is possible that resulting discrete sorted-features could be cached
+        to increase efficiency -- especially if the number of input sizes is 
+        mostly static.
+    """
+    def __init__(self):
+        self.monotonic_splines = []
+    
+    def __call__(self):
+        pass
+
 
 class Core:
     """
@@ -69,7 +108,8 @@ class Memory:
         includes tracing for optimization
     """
     def __init__(self):
-        self.compressor_core = Core()
+        self.compressor_core: Core = None
+        self.decompressor_core: Core = None
         self.uncompressed_memories = None
         self.compressed_memories = None
         self.space_complexity = None
@@ -93,6 +133,22 @@ class Memory:
         pass
 
     def compress(self):
+        pass
+
+
+class Contact:
+
+    def __init__(self, module_id, module_level):
+        self.module_id = module_id
+        self.module_level = module_level
+
+        self.request_sparse_permutation = None
+        self.response_sparse_permutation = None
+        
+        self.request_dense_permutation = None
+        self.response_dense_permutation = None
+    
+    def initialize_permutation(self):
         pass
 
 
@@ -129,27 +185,27 @@ class Module:
     def __init__(self):
         self.id = None
         self.level = None
-        self.contacts = []
-        self.complexity = Complexity()
+        self.contacts: List[Contact] = None
+        self.complexity: Complexity = None
 
-        self.logistics_queue = []
-        self.logistics_memory = Memory()
+        self.logistics_queue: List[Logistics] = None
+        self.logistics_memory: Memory = None
 
         self.state = None
-        self.state_core = Core()
-        self.state_memory = Memory()
+        self.state_core: Core = None
+        self.state_memory: Memory = None
         self.state_timestamp = None
-        self.state_update_core = Core()
+        self.state_update_core: Core = None
 
         self.context = None
-        self.context_core = Core()
-        self.context_memory = Memory()
+        self.context_core: Core = None
+        self.context_memory: Memory = None
         self.context_timestamp = None
         
-        self.service_core = Core()
-        self.service_memory = Memory()
+        self.service_core: Core = None
+        self.service_memory: Memory = None
         self.service_timestamp = None
-        
+
 
 class GraphModel:
     """
