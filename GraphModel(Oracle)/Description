@@ -1,0 +1,207 @@
+# Graph Model Intellectual Property (IP) Description
+
+This document outlines the conceptual, architectural, and theoretical components of the Graph Model Oracle that constitute protectable intellectual property under the OTU Green License. It is designed to capture the novel contributions, structural primitives, and high-level system design so that future implementations, publications, and derivative works can reference a clear canonical description of the underlying ideas.
+
+---
+
+## 1. Purpose and Scope
+
+This description covers:
+
+* The Graph Model architecture
+* The Core, Module, and Mind's Eye subsystems
+* The monotone-spline feature standardization process
+* The use of Q/K/V attention as atomic routing primitives
+* Hierarchical modular design
+* Multi-regime optimization
+* Dynamic architecture search and module birth/death
+* Universal embedded memory structure
+* Complexity-gradient constraints
+* Module-to-module logistics and communication
+* Any other conceptual structures foundational to the system
+
+This description serves as a claim of authorship and a baseline reference for all future implementations.
+
+---
+
+## 2. High-Level Summary of the Graph Model
+
+The Graph Model is a hierarchical, modular, general-purpose learning and reasoning architecture composed of interacting Cores and Modules organized across abstraction levels, with a meta-learning subsystem (“Mind’s Eye”) that performs architectural introspection and optimization.
+
+The system is designed to:
+
+* Learn continuously
+* Support self-modification
+* Maintain sparsity and modularity
+* Integrate causal and contextual information
+* Support distributed reasoning
+* Scale adaptively
+* Avoid brittle entanglement in representations
+* Operate in alignment with ethical constraints and biosphere-preserving principles
+
+---
+
+## 3. Core Architectural Components
+
+### 3.1 Core
+
+The atomic computational unit of the Graph Model. Each Core:
+
+* Receives input vectors
+* Canonicalizes them using monotone-spline feature standardization
+* Generates Q, K, and V feature layers
+* Computes content-based routing vectors using softmax(QK)
+* Mixes messages via softmax(QK)·V
+* Propagates the resulting contextualized embedding upward or outward
+* May expand into additional parallel or downstream Layers
+
+Cores represent the smallest unit of expertise and internal transformation.
+
+### 3.2 Module
+
+A Module contains multiple Cores in specialized roles:
+
+* **State Core**: longitudinal state representation
+* **Context Core**: immediate dynamic context integration
+* **Service Core**: direct transformation of requests from other Modules
+* **Memory subsystem**: compressive and non-compressive storage of past embeddings
+* **Logistics subsystem**: communication interface for inter-Module messaging
+* **Complexity subsystem**: monitors space/time bounds and curvature
+
+Modules communicate using attention-based routing via Contacts, allowing flexible, dynamic information exchange.
+
+### 3.3 MindsEye
+
+A meta-learning Module that:
+
+* Monitors the Graph state
+* Adjusts optimization regimes
+* Directs architecture expansion/contraction
+* Coordinates module specialization
+* Regulates complexity gradients
+* Ensures long-term stability and adaptability
+* Provides oversight of learning dynamics
+
+MindsEye acts as a form of internal "meta-optimizer and architect."
+
+---
+
+## 4. Monotone-Spline Feature Standardization
+
+This is a core innovation of the system:
+
+* Raw feature vectors are sorted to obtain a stable representation of their magnitude structure.
+* The sorted vector is modeled as a monotonic curve.
+* The system maps this curve into a set of monotone spline representations.
+* A learned permutation maps standardized spline coordinates back into the learned embedding space.
+* This imposes a universal feature geometry across Modules.
+
+This process stabilizes feature representations and reduces entanglement.
+
+---
+
+## 5. Attention as a Structural Attractor
+
+The system assumes—based on theoretical and empirical reasoning—that Q/K/V attention is not merely a useful mechanism but a **stable computational attractor** for modular architectures.
+
+This includes:
+
+* Q representing queries (what a Core seeks)
+* K representing keys (how a Core presents itself)
+* V representing messages (what a Core communicates)
+* Softmax normalization for dynamic, stable routing
+
+The hypothesis is that architectures with attention primitives maintain modular stability, while architectures that lack explicit attention fail to develop stable routing.
+
+This forms a critical part of the IP.
+
+---
+
+## 6. Multi-Regime Optimization
+
+Optimization is not fixed. The system transitions through phases:
+
+* **Large mini-batches** early for basin-landing
+* **Small mini-batches** for structural differentiation
+* **Online SGD** for fine causal learning and high-resolution updates
+* **Batch fallback** when instability is detected
+
+The meta-optimizer controls regime transitions based on graph metrics.
+
+---
+
+## 7. Architecture Search and Module Lifecycle
+
+The Graph Model includes:
+
+* Learnable generation of new Cores and Layers
+* Birth/annihilation/merging of Modules
+* Expansion or reduction of parallel and downstream Layers inside Cores
+* Dynamic adjustment of memory representations
+* Routing rewiring via Contacts
+
+NAS is integrated directly into the architecture via MindsEye and complexity constraints.
+
+---
+
+## 8. Memory System
+
+Memory uses:
+
+* Uncompressed storage for recent experiences
+* Compressed storage with curvature increasing over time
+* Embedding-based mixing
+* A Core-based compression/decompression pair
+* Learnable space-time complexity limits
+
+This forms a self-organizing, lossy memory architecture.
+
+---
+
+## 9. Complexity-Gradient Constraints
+
+Modules track:
+
+* Time complexity
+* Space complexity
+* Curvature in module interactions
+
+As Modules approach resource limits, learning pressure increases toward architectural transformation.
+
+This introduces a form of "computational relativistic pressure" into the system.
+
+---
+
+## 10. Logistics Framework
+
+Modules communicate through logistic channels:
+
+* Request/response mechanisms
+* Sparse and dense permutation paths
+* Queued interactions
+* Internal errors (e.g., distributional shifts, outlier detection)
+* Contextual transformations of incoming requests
+
+This enables flexible, interdependent operations.
+
+---
+
+## 11. IP Coverage
+
+This document claims IP over:
+
+* Architectural primitives
+* Coupling between monotone-spline features and attention
+* The hypothesis of attention as structural attractor
+* Use of spline-standardized embeddings for universal module interoperability
+* Hierarchical system of Modules with multiple Core roles
+* MindsEye meta-learning system
+* All Core/Module/Memory/Logistics/Complexity abstractions
+* Optimization-regime switching based on graph dynamics
+* Integrated architecture search primitives
+
+This does **not** assert ownership over general ideas of attention, splines, optimization algorithms, or neural networks—only their novel structural arrangement inside the Graph Model.
+
+---
+
+This concludes the IP description section. Additional sections may be added as the architecture evolves.
