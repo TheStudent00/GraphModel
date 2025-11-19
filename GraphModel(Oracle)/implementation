@@ -1,0 +1,203 @@
+# Graph Model Software Implementation Notes
+# -----------------------------------------
+# This document outlines the software-side intellectual property (IP) for the
+# Graph Model Oracle architecture. It is not intended to be executable code,
+# but a structural reference for how the architecture should be organized in
+# implementation. This forms the basis for protected design abstractions under
+# the OTU Green License.
+
+# SECTION 1 — Core Software Structures
+# ------------------------------------
+# Below are the primary software abstractions that implement the high-level
+# architectural components described in the IP document.
+
+class SplineFeature:
+    """
+    Canonicalized feature structure.
+    - Input vector is sorted.
+    - Sorted vector is projected into a monotone spline representation.
+    - Learned permutation remaps spline-structured features back into
+      the Core's embedding coordinate system.
+
+    This enables universal feature geometry across Modules.
+    """
+    def __init__(self):
+        self.sorted_values = None
+        self.spline_params = None
+        self.learned_permutation = None
+
+    def canonicalize(self, x):
+        pass
+
+    def to_embedding(self):
+        pass
+
+
+class QKVLayer:
+    """
+    Atomic attention-like structure.
+    Each Core generates:
+    - Q: what the Core is looking for
+    - K: how the Core appears to others
+    - V: what the Core communicates
+
+    The softmax(QK) * V operation is built in.
+    """
+    def __init__(self):
+        self.Q = None
+        self.K = None
+        self.V = None
+
+    def forward(self, x):
+        # 1. Compute Q, K, V representations of x
+        # 2. Compute attention weights via softmax(QK)
+        # 3. Compute mixed output = softmax(QK) @ V
+        pass
+
+
+class Core:
+    """
+    Smallest compute agent in the Graph Model.
+
+    - Starts with a single SplineFeature layer.
+    - May dynamically expand with parallel (Q/K/V) layers.
+    - May add downstream layers for deeper transformations.
+    - Performs content-based routing.
+    """
+    def __init__(self):
+        self.base_features = SplineFeature()
+        self.parallel_layers = []  # includes Q/K/V expansions
+        self.downstream_layers = []
+
+    def forward(self, x):
+        # Step 1: canonicalize and embed
+        base = self.base_features.canonicalize(x)
+
+        # Step 2: apply QKV layers if present
+        for layer in self.parallel_layers:
+            base = layer.forward(base)
+
+        # Step 3: apply downstream layers
+        for layer in self.downstream_layers:
+            base = layer(base)
+
+        return base
+
+
+# SECTION 2 — Module-Level Structures
+# -----------------------------------
+
+class Memory:
+    """
+    Memory subsystem with compression/decompression.
+    - Recent memories stored verbatim.
+    - Older memories compressed with increasing curvature.
+    - Compression controlled by complexity constraints.
+    """
+    def __init__(self):
+        self.raw_store = []
+        self.compressed_store = []
+        self.core_compressor = None
+        self.core_decompressor = None
+
+    def store(self, x):
+        pass
+
+    def compress_if_needed(self):
+        pass
+
+
+class Logistics:
+    """
+    Handles module-to-module communication.
+    - Encodes requests
+    - Applies sparse/dense learned permutations
+    - Sends responses encoded in embedding space
+    """
+    def __init__(self):
+        self.requests = {}
+        self.responses = {}
+
+    def handle_request(self, src_id):
+        pass
+
+    def send_response(self, dest_id):
+        pass
+
+
+class Module:
+    """
+    Container for Cores, Memory, Logistics, and state.
+    Specializes into:
+    - state_core
+    - context_core
+    - service_core
+
+    May evolve via NAS: expand, merge, or prune substructures.
+    """
+    def __init__(self):
+        self.state_core = Core()
+        self.context_core = Core()
+        self.service_core = Core()
+
+        self.memory = Memory()
+        self.logistics = Logistics()
+
+    def forward(self, x):
+        # Base processing pipeline for module behavior
+        s = self.state_core.forward(x)
+        c = self.context_core.forward(s)
+        o = self.service_core.forward(c)
+        return o
+
+
+# SECTION 3 — Mind's Eye (Meta-Learner)
+# --------------------------------------
+
+class MindsEye(Module):
+    """
+    Meta-learning and architectural oversight module.
+    - Observes Module/Graph state
+    - Switches optimization regimes
+    - Guides NAS (expansion/contraction)
+    - Maintains global coherence
+    """
+    def __init__(self):
+        super().__init__()
+        self.architecture_memory = Memory()
+
+    def update_architecture(self, graph_state):
+        # Evaluate complexity, stability, novelty
+        # Decide on growth or pruning
+        pass
+
+
+# SECTION 4 — Graph Model Container
+# ---------------------------------
+
+class GraphModel:
+    """
+    Top-level container for all Modules + Mind's Eye.
+    Responsible for:
+    - Orchestrating training
+    - Managing optimization regimes
+    - Tracking global complexity metrics
+    - Routing data through Modules
+    """
+    def __init__(self, modules=None):
+        self.modules = modules if modules is not None else [Module()]
+        self.meta_module = MindsEye()
+
+    def step(self, x):
+        # Core system step: propagate input through modules
+        output = x
+        for m in self.modules:
+            output = m.forward(output)
+        return output
+
+    def optimize(self):
+        # Trigger optimization according to meta-learning
+        pass
+
+
+# End of Software Implementation Notes
