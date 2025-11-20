@@ -201,3 +201,60 @@ class GraphModel:
 
 
 # End of Software Implementation Notes
+
+
+## 12. Nascent Hierarchy and Interface Structure
+
+### 12.1 Nascent Hierarchy Levels
+- Only ground-state modules exist concretely at initialization.
+- Higher abstraction levels exist in a virtual identity state until needed.
+- Logic may safely skip over empty identity levels.
+- Default number of nascent levels = **33**, based on log-scale coverage for extremely large inputs.
+- Mind’s Eye may later expand or contract levels dynamically.
+
+### 12.2 Embedding-Space
+- Embedding-space defines the dimensionality of feature-space.
+- Default embedding-space size may be:
+  - developer-specified,
+  - chosen by Mind’s Eye,
+  - or selected via theoretical/empirical rules.
+
+### 12.3 Interface Definition
+- Interfaces connect environment ↔ Graph Model.
+- Interfaces may be input-only, output-only, or mixed.
+
+### 12.4 Input-Module Structure
+- Default: one input-module services the entire input sample.
+- input_module.id supports hierarchical identifiers (0, 0.0, 0.0.1, etc.).
+- Default id for input-module = **0**.
+
+#### Cloning Behavior (NAS Exploration)
+- Input-module may be cloned into 0.0 and 0.1.
+- Downstream modules receive two messages from cloned modules.
+- Overlap component merges these:
+  - default: average outputs (½·out₀₀ + ½·out₀₁).
+
+### 12.5 Overlap Component
+- Manages entanglement created by cloned modules.
+- Ensures downstream compatibility during NAS exploration.
+- Default combination rule: weighted averaging of overlapping outputs.
+
+### 12.6 Output-Module Structure
+- Default: one output-module services full output sample.
+- output_module.id = **1**.
+- Cloning behaves same as input-module.
+- Overlap manages mapping back to output interface.
+
+### 12.7 Input→Output Path
+- input-module processes environment input.
+- Passes message to output-module through attention-based routing.
+- Output-module produces approximation for output-interface.
+
+### 12.8 NAS Exploration and Complexity Dynamics
+- Cloning temporarily doubles modules; complexity increases.
+- Reduction phase must eliminate redundant modules while preserving inputs.
+- Overlap may remain indefinitely if advantageous.
+- No input elements may be dropped; each must map to at least one module.
+- Complexity-gradient behaves like a relativistic barrier preventing runaway expansion.
+
+These additions formalize the Graph Model's nascent hierarchy, interface design, cloning behavior, Overlap component, and NAS-driven expansion/reduction dynamics.
