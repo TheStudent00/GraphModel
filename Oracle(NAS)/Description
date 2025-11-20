@@ -1,207 +1,259 @@
-# Graph Model Intellectual Property (IP) Description
-
-This document outlines the conceptual, architectural, and theoretical components of the Graph Model Oracle that constitute protectable intellectual property under the OTU Green License. It is designed to capture the novel contributions, structural primitives, and high-level system design so that future implementations, publications, and derivative works can reference a clear canonical description of the underlying ideas.
-
----
-
-## 1. Purpose and Scope
-
-This description covers:
-
-* The Graph Model architecture
-* The Core, Module, and Mind's Eye subsystems
-* The monotone-spline feature standardization process
-* The use of Q/K/V attention as atomic routing primitives
-* Hierarchical modular design
-* Multi-regime optimization
-* Dynamic architecture search and module birth/death
-* Universal embedded memory structure
-* Complexity-gradient constraints
-* Module-to-module logistics and communication
-* Any other conceptual structures foundational to the system
-
-This description serves as a claim of authorship and a baseline reference for all future implementations.
-
----
-
-## 2. High-Level Summary of the Graph Model
-
-The Graph Model is a hierarchical, modular, general-purpose learning and reasoning architecture composed of interacting Cores and Modules organized across abstraction levels, with a meta-learning subsystem (“Mind’s Eye”) that performs architectural introspection and optimization.
-
-The system is designed to:
-
-* Learn continuously
-* Support self-modification
-* Maintain sparsity and modularity
-* Integrate causal and contextual information
-* Support distributed reasoning
-* Scale adaptively
-* Avoid brittle entanglement in representations
-* Operate in alignment with ethical constraints and biosphere-preserving principles
-
----
-
-## 3. Core Architectural Components
-
-### 3.1 Core
-
-The atomic computational unit of the Graph Model. Each Core:
-
-* Receives input vectors
-* Canonicalizes them using monotone-spline feature standardization
-* Generates Q, K, and V feature layers
-* Computes content-based routing vectors using softmax(QK)
-* Mixes messages via softmax(QK)·V
-* Propagates the resulting contextualized embedding upward or outward
-* May expand into additional parallel or downstream Layers
-
-Cores represent the smallest unit of expertise and internal transformation.
-
-### 3.2 Module
-
-A Module contains multiple Cores in specialized roles:
-
-* **State Core**: longitudinal state representation
-* **Context Core**: immediate dynamic context integration
-* **Service Core**: direct transformation of requests from other Modules
-* **Memory subsystem**: compressive and non-compressive storage of past embeddings
-* **Logistics subsystem**: communication interface for inter-Module messaging
-* **Complexity subsystem**: monitors space/time bounds and curvature
-
-Modules communicate using attention-based routing via Contacts, allowing flexible, dynamic information exchange.
-
-### 3.3 MindsEye
-
-A meta-learning Module that:
-
-* Monitors the Graph state
-* Adjusts optimization regimes
-* Directs architecture expansion/contraction
-* Coordinates module specialization
-* Regulates complexity gradients
-* Ensures long-term stability and adaptability
-* Provides oversight of learning dynamics
-
-MindsEye acts as a form of internal "meta-optimizer and architect."
-
----
-
-## 4. Monotone-Spline Feature Standardization
-
-This is a core innovation of the system:
-
-* Raw feature vectors are sorted to obtain a stable representation of their magnitude structure.
-* The sorted vector is modeled as a monotonic curve.
-* The system maps this curve into a set of monotone spline representations.
-* A learned permutation maps standardized spline coordinates back into the learned embedding space.
-* This imposes a universal feature geometry across Modules.
-
-This process stabilizes feature representations and reduces entanglement.
-
----
-
-## 5. Attention as a Structural Attractor
-
-The system assumes—based on theoretical and empirical reasoning—that Q/K/V attention is not merely a useful mechanism but a **stable computational attractor** for modular architectures.
-
-This includes:
-
-* Q representing queries (what a Core seeks)
-* K representing keys (how a Core presents itself)
-* V representing messages (what a Core communicates)
-* Softmax normalization for dynamic, stable routing
-
-The hypothesis is that architectures with attention primitives maintain modular stability, while architectures that lack explicit attention fail to develop stable routing.
-
-This forms a critical part of the IP.
-
----
-
-## 6. Multi-Regime Optimization
-
-Optimization is not fixed. The system transitions through phases:
-
-* **Large mini-batches** early for basin-landing
-* **Small mini-batches** for structural differentiation
-* **Online SGD** for fine causal learning and high-resolution updates
-* **Batch fallback** when instability is detected
-
-The meta-optimizer controls regime transitions based on graph metrics.
-
----
-
-## 7. Architecture Search and Module Lifecycle
-
-The Graph Model includes:
-
-* Learnable generation of new Cores and Layers
-* Birth/annihilation/merging of Modules
-* Expansion or reduction of parallel and downstream Layers inside Cores
-* Dynamic adjustment of memory representations
-* Routing rewiring via Contacts
-
-NAS is integrated directly into the architecture via MindsEye and complexity constraints.
-
----
-
-## 8. Memory System
-
-Memory uses:
-
-* Uncompressed storage for recent experiences
-* Compressed storage with curvature increasing over time
-* Embedding-based mixing
-* A Core-based compression/decompression pair
-* Learnable space-time complexity limits
-
-This forms a self-organizing, lossy memory architecture.
-
----
-
-## 9. Complexity-Gradient Constraints
-
-Modules track:
-
-* Time complexity
-* Space complexity
-* Curvature in module interactions
-
-As Modules approach resource limits, learning pressure increases toward architectural transformation.
-
-This introduces a form of "computational relativistic pressure" into the system.
-
----
-
-## 10. Logistics Framework
-
-Modules communicate through logistic channels:
-
-* Request/response mechanisms
-* Sparse and dense permutation paths
-* Queued interactions
-* Internal errors (e.g., distributional shifts, outlier detection)
-* Contextual transformations of incoming requests
-
-This enables flexible, interdependent operations.
-
----
-
-## 11. IP Coverage
-
-This document claims IP over:
-
-* Architectural primitives
-* Coupling between monotone-spline features and attention
-* The hypothesis of attention as structural attractor
-* Use of spline-standardized embeddings for universal module interoperability
-* Hierarchical system of Modules with multiple Core roles
-* MindsEye meta-learning system
-* All Core/Module/Memory/Logistics/Complexity abstractions
-* Optimization-regime switching based on graph dynamics
-* Integrated architecture search primitives
-
-This does **not** assert ownership over general ideas of attention, splines, optimization algorithms, or neural networks—only their novel structural arrangement inside the Graph Model.
-
----
-
-This concludes the IP description section. Additional sections may be added as the architecture evolves.
+# Graph Model Software Implementation Notes
+# -----------------------------------------
+# This document outlines the software-side intellectual property (IP) for the
+# Graph Model Oracle architecture. It is not intended to be executable code,
+# but a structural reference for how the architecture should be organized in
+# implementation. This forms the basis for protected design abstractions under
+# the OTU Green License.
+
+# SECTION 1 — Core Software Structures
+# ------------------------------------
+# Below are the primary software abstractions that implement the high-level
+# architectural components described in the IP document.
+
+class SplineFeature:
+    """
+    Canonicalized feature structure.
+    - Input vector is sorted.
+    - Sorted vector is projected into a monotone spline representation.
+    - Learned permutation remaps spline-structured features back into
+      the Core's embedding coordinate system.
+
+    This enables universal feature geometry across Modules.
+    """
+    def __init__(self):
+        self.sorted_values = None
+        self.spline_params = None
+        self.learned_permutation = None
+
+    def canonicalize(self, x):
+        pass
+
+    def to_embedding(self):
+        pass
+
+
+class QKVLayer:
+    """
+    Atomic attention-like structure.
+    Each Core generates:
+    - Q: what the Core is looking for
+    - K: how the Core appears to others
+    - V: what the Core communicates
+
+    The softmax(QK) * V operation is built in.
+    """
+    def __init__(self):
+        self.Q = None
+        self.K = None
+        self.V = None
+
+    def forward(self, x):
+        # 1. Compute Q, K, V representations of x
+        # 2. Compute attention weights via softmax(QK)
+        # 3. Compute mixed output = softmax(QK) @ V
+        pass
+
+
+class Core:
+    """
+    Smallest compute agent in the Graph Model.
+
+    - Starts with a single SplineFeature layer.
+    - May dynamically expand with parallel (Q/K/V) layers.
+    - May add downstream layers for deeper transformations.
+    - Performs content-based routing.
+    """
+    def __init__(self):
+        self.base_features = SplineFeature()
+        self.parallel_layers = []  # includes Q/K/V expansions
+        self.downstream_layers = []
+
+    def forward(self, x):
+        # Step 1: canonicalize and embed
+        base = self.base_features.canonicalize(x)
+
+        # Step 2: apply QKV layers if present
+        for layer in self.parallel_layers:
+            base = layer.forward(base)
+
+        # Step 3: apply downstream layers
+        for layer in self.downstream_layers:
+            base = layer(base)
+
+        return base
+
+
+# SECTION 2 — Module-Level Structures
+# -----------------------------------
+
+class Memory:
+    """
+    Memory subsystem with compression/decompression.
+    - Recent memories stored verbatim.
+    - Older memories compressed with increasing curvature.
+    - Compression controlled by complexity constraints.
+    """
+    def __init__(self):
+        self.raw_store = []
+        self.compressed_store = []
+        self.core_compressor = None
+        self.core_decompressor = None
+
+    def store(self, x):
+        pass
+
+    def compress_if_needed(self):
+        pass
+
+
+class Logistics:
+    """
+    Handles module-to-module communication.
+    - Encodes requests
+    - Applies sparse/dense learned permutations
+    - Sends responses encoded in embedding space
+    """
+    def __init__(self):
+        self.requests = {}
+        self.responses = {}
+
+    def handle_request(self, src_id):
+        pass
+
+    def send_response(self, dest_id):
+        pass
+
+
+class Module:
+    """
+    Container for Cores, Memory, Logistics, and state.
+    Specializes into:
+    - state_core
+    - context_core
+    - service_core
+
+    May evolve via NAS: expand, merge, or prune substructures.
+    """
+    def __init__(self):
+        self.state_core = Core()
+        self.context_core = Core()
+        self.service_core = Core()
+
+        self.memory = Memory()
+        self.logistics = Logistics()
+
+    def forward(self, x):
+        # Base processing pipeline for module behavior
+        s = self.state_core.forward(x)
+        c = self.context_core.forward(s)
+        o = self.service_core.forward(c)
+        return o
+
+
+# SECTION 3 — Mind's Eye (Meta-Learner)
+# --------------------------------------
+
+class MindsEye(Module):
+    """
+    Meta-learning and architectural oversight module.
+    - Observes Module/Graph state
+    - Switches optimization regimes
+    - Guides NAS (expansion/contraction)
+    - Maintains global coherence
+    """
+    def __init__(self):
+        super().__init__()
+        self.architecture_memory = Memory()
+
+    def update_architecture(self, graph_state):
+        # Evaluate complexity, stability, novelty
+        # Decide on growth or pruning
+        pass
+
+
+# SECTION 4 — Graph Model Container
+# ---------------------------------
+
+class GraphModel:
+    """
+    Top-level container for all Modules + Mind's Eye.
+    Responsible for:
+    - Orchestrating training
+    - Managing optimization regimes
+    - Tracking global complexity metrics
+    - Routing data through Modules
+    """
+    def __init__(self, modules=None):
+        self.modules = modules if modules is not None else [Module()]
+        self.meta_module = MindsEye()
+
+    def step(self, x):
+        # Core system step: propagate input through modules
+        output = x
+        for m in self.modules:
+            output = m.forward(output)
+        return output
+
+    def optimize(self):
+        # Trigger optimization according to meta-learning
+        pass
+
+
+# End of Software Implementation Notes
+
+## 12. Nascent Hierarchy and Interface Structure
+
+### 12.1 Nascent Hierarchy Levels
+- Only ground‑state modules exist concretely at initialization.
+- Higher abstraction levels exist in a virtual identity state until needed.
+- Logic may safely skip over empty identity levels.
+- Default number of nascent levels = **33**, based on log‑scale coverage for extremely large inputs.
+- Mind’s Eye may later expand or contract levels dynamically.
+
+### 12.2 Embedding-Space
+- Embedding-space defines the dimensionality of feature-space.
+- Default embedding-space size may be:
+  - developer‑specified,
+  - chosen by Mind’s Eye,
+  - or selected via theoretical/empirical rules.
+
+### 12.3 Interface Definition
+- Interfaces connect environment ↔ Graph Model.
+- Interfaces may be input-only, output-only, or mixed.
+
+### 12.4 Input-Module Structure
+- Default: one input-module services the entire input sample.
+- input_module.id supports hierarchical identifiers (0, 0.0, 0.0.1, etc.).
+- Default id for input-module = **0**.
+
+#### Cloning Behavior (NAS Exploration)
+- Input-module may be cloned into 0.0 and 0.1.
+- Downstream modules receive two messages from cloned modules.
+- Overlap component merges these:
+  - default: average outputs (½·out₀₀ + ½·out₀₁).
+
+### 12.5 Overlap Component
+- Manages entanglement created by cloned modules.
+- Ensures downstream compatibility during NAS exploration.
+- Default combination rule: weighted averaging of overlapping outputs.
+
+### 12.6 Output-Module Structure
+- Default: one output-module services full output sample.
+- output_module.id = **1**.
+- Cloning behaves same as input-module.
+- Overlap manages mapping back to output interface.
+
+### 12.7 Input→Output Path
+- input-module processes environment input.
+- Passes message to output-module through attention-based routing.
+- Output-module produces approximation for output-interface.
+
+### 12.8 NAS Exploration and Complexity Dynamics
+- Cloning temporarily doubles modules; complexity increases.
+- Reduction phase must eliminate redundant modules while preserving inputs.
+- Overlap may remain indefinitely if advantageous.
+- No input elements may be dropped; each must map to at least one module.
+- Complexity-gradient behaves like a relativistic barrier preventing runaway expansion.
+
+These additions formalize the Graph Model's nascent hierarchy, interface design, cloning behavior, Overlap component, and NAS-driven expansion/reduction dynamics.
