@@ -258,46 +258,164 @@ class GraphModel:
 
 These additions formalize the Graph Model's nascent hierarchy, interface design, cloning behavior, Overlap component, and NAS-driven expansion/reduction dynamics.
 
-## 13. Symmetry Breaking in Cloned Modules
+# SECTION 5 — Interfaces, Hierarchy, and NAS Dynamics
+# ---------------------------------------------------
 
-The Graph Model includes a principled, self-regulating mechanism for structural symmetry breaking whenever the NAS system clones Modules to explore improved architectures.
+# 5.1 Nascent Hierarchy Levels
+# ----------------------------
+# - Ground-state modules exist physically.
+# - Higher abstraction levels exist in virtual identity state.
+# - Logic-flow may skip identity levels with negligible cost.
+# - Default: 33 abstraction levels (log-scale coverage for extremely large inputs).
+# - Mind's Eye may dynamically add/remove levels.
 
-### 13.1 Overwork-Driven Divergence  
-When a Module becomes overloaded—meaning its internal Cores, feature transformations, or routing operations receive gradients with excessive variance or multimodal structure—the NAS system may clone the Module. Although both clones begin as exact duplicates (same spline features, same learned permutations, same Q/K/V layers, same memory state), the act of splitting the workload immediately changes the gradient dynamics for each clone.  
+class HierarchyManager:
+    """
+    Tracks nascent abstraction levels and controls when a level transitions
+    from virtual identity to instantiated Modules.
+    """
+    def __init__(self, num_levels=33):
+        self.num_levels = num_levels
+        self.level_states = ["identity" for _ in range(num_levels)]
 
-Each clone now experiences:
-- different effective gradient magnitudes,
-- different internal bottlenecks,
-- different local feature stresses,
-- different optimization pressures.
+    def activate_level(self, level_idx):
+        # Convert identity state to instantiated state
+        self.level_states[level_idx] = "active"
 
-Even without noise, **these altered internal pressures naturally push the two clones toward different representational solutions**, producing structural divergence.
 
-### 13.2 Perturbation-Accelerated Divergence  
-To make divergence reliable and to avoid pathological symmetry lock-in, the system permits very small perturbations during cloning:
-- micro-jitter in monotone spline parameters,
-- tiny noise in learned permutation matrices,
-- unshared dropout masks,
-- minor noise in Q/K/V projections,
-- slight independent learning-rate micro-variations.
+# 5.2 Interfaces
+# --------------
+# Interfaces connect environment <-> Graph Model.
+# Interfaces can be dedicated to:
+# - input
+# - output
+# - or both
 
-These perturbations are extremely small relative to model scale but sufficient because **gradient descent amplifies any initial asymmetry**.
+class Interface:
+    """
+    Wrapper for environment I/O.
+    Handles external-to-internal mapping into Module embeddings.
+    """
+    def __init__(self, mode="input"):
+        self.mode = mode  # "input", "output", or "dual"
 
-### 13.3 When Clones Do *Not* Diverge  
-If the underlying Module was not truly overloaded, then cloning provides no real benefit. In these cases:
-- gradients for both clones converge toward similar solutions,
-- divergence pressure collapses,
-- neither clone gains a unique specialization advantage.
+    def encode(self, x):
+        # Environment -> Core embedding
+        pass
 
-The **complexity-gradient penalty** for maintaining unnecessary modules then dominates, and NAS prunes one of the clones. This ensures the system does not accumulate redundant substructures.
+    def decode(self, y):
+        # Core embedding -> environment output
+        pass
 
-### 13.4 Architectural Outcome  
-The result is a clean, mathematically coherent mechanism for safe architectural bifurcation:
 
-1. **Clone** a Module when representational or computational load is excessive.  
-2. **Overlap** combines clone outputs to maintain downstream invariants.  
-3. **Perturbation + workload dynamics** induces divergence when beneficial.  
-4. **Complexity gradient** acts as an energetic barrier against redundant growth.  
-5. **Specialized Modules** persist only when they provide measurable improvement.
+# 5.3 Input Module
+# ----------------
+# - Default ID = 0
+# - May be cloned (0 -> 0.0, 0.1)
+# - Downstream modules see two messages from cloned modules
+# - Overlap component merges messages
 
-This symmetry-breaking protocol enables the Graph Model to explore, differentiate, and refine its architecture continuously while ensuring stability and preventing runaway expansion.
+class Overlap:
+    """
+    Manages combination of messages from cloned modules.
+    Default behavior:
+        merged = 0.5 * message_a + 0.5 * message_b
+    """
+    def __init__(self):
+        pass
+
+    def merge(self, *messages):
+        if not messages:
+            return None
+        w = 1.0 / len(messages)
+        total = None
+        for m in messages:
+            total = m if total is None else total + m
+        return w * total
+
+
+class InputModule(Module):
+    """
+    Specialized Module that interfaces with external input.
+    Supports cloning during NAS exploration.
+    """
+    def __init__(self, module_id=0):
+        super().__init__()
+        self.id = str(module_id)
+        self.overlap = Overlap()
+
+    def clone(self):
+        # Create cloned modules 0.0, 0.1, etc.
+        a = InputModule(self.id + ".0")
+        b = InputModule(self.id + ".1")
+        return a, b
+
+
+# 5.4 Output Module
+# -----------------
+# Behavior mirrors InputModule
+
+class OutputModule(Module):
+    def __init__(self, module_id=1):
+        super().__init__()
+        self.id = str(module_id)
+        self.overlap = Overlap()
+
+    def clone(self):
+        a = OutputModule(self.id + ".0")
+        b = OutputModule(self.id + ".1")
+        return a, b
+
+
+# 5.5 Input -> Output Flow
+# ------------------------
+# - InputModule encodes and processes input
+# - Messages flow through hierarchical Module layers
+# - OutputModule processes and decodes final result
+
+class GraphModel:  # extending previous definition
+    def __init__(self, input_interface=None, output_interface=None):
+        self.input_interface = input_interface or Interface("input")
+        self.output_interface = output_interface or Interface("output")
+
+        # Default modules if none provided
+        self.input_module = InputModule(0)
+        self.output_module = OutputModule(1)
+
+        # Inter-module routing can evolve
+        self.modules = [self.input_module, self.output_module]
+        self.meta_module = MindsEye()
+        self.hierarchy = HierarchyManager()
+
+    def forward(self, x):
+        encoded = self.input_interface.encode(x)
+        processed = self.input_module.forward(encoded)
+        output_embedding = self.output_module.forward(processed)
+        return self.output_interface.decode(output_embedding)
+
+
+# 5.6 NAS Exploration Dynamics
+# ----------------------------
+# - Cloning doubles module count temporarily
+# - Overlap halves outgoing activations to preserve downstream invariants
+# - Reduction phase prunes redundant modules
+# - Reduction must map every input element to ≥ 1 module
+# - Overlap may persist indefinitely if beneficial
+# - Complexity gradient prevents runaway expansion
+
+class NASController:
+    """
+    Controls exploration (cloning) and reduction (pruning).
+    """
+    def __init__(self):
+        pass
+
+    def explore(self, module):
+        # Returns two clones
+        return module.clone()
+
+    def reduce(self, modules):
+        # Prune modules based on complexity gradient and utility
+        pass
+
+
