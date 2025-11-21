@@ -403,19 +403,77 @@ class GraphModel:  # extending previous definition
 # - Overlap may persist indefinitely if beneficial
 # - Complexity gradient prevents runaway expansion
 
+class SymmetryBreaker:
+    """
+    Implements controlled symmetry-breaking during NAS cloning.
+    Applies small perturbations to cloned Modules to ensure they
+    diverge under gradient descent rather than remaining locked
+    in identical parameter subspaces.
+    """
+
+    def __init__(self, noise_scale=1e-5):
+        self.noise_scale = noise_scale
+
+    def perturb_tensor(self, tensor):
+        if tensor is None:
+            return None
+        return tensor + self.noise_scale * np.random.randn(*tensor.shape)
+
+    def perturb_core(self, core):
+        if hasattr(core.base_features, "spline_params") and core.base_features.spline_params is not None:
+            core.base_features.spline_params = self.perturb_tensor(core.base_features.spline_params)
+
+        if hasattr(core.base_features, "learned_permutation") and core.base_features.learned_permutation is not None:
+            core.base_features.learned_permutation = self.perturb_tensor(core.base_features.learned_permutation)
+
+        for layer in core.parallel_layers:
+            if hasattr(layer, "Q") and layer.Q is not None:
+                layer.Q = self.perturb_tensor(layer.Q)
+            if hasattr(layer, "K") and layer.K is not None:
+                layer.K = self.perturb_tensor(layer.K)
+            if hasattr(layer, "V") and layer.V is not None:
+                layer.V = self.perturb_tensor(layer.V)
+
+    def apply(self, module):
+        for attribute in ["state_core", "context_core", "service_core"]:
+            core = getattr(module, attribute, None)
+            if core is not None:
+                self.perturb_core(core)
+        return module
+
+
 class NASController:
     """
-    Controls exploration (cloning) and reduction (pruning).
+    Controls exploration and reduction during NAS.
+    Extended with:
+    - symmetry-breaking perturbation injection,
+    - divergence-aware clone evaluation,
+    - complexity-gradient pruning logic.
     """
-    def __init__(self):
-        pass
+
+    def __init__(self, symmetry_breaker=None):
+        self.symmetry_breaker = symmetry_breaker or SymmetryBreaker()
 
     def explore(self, module):
-        # Returns two clones
-        return module.clone()
+        clone_a = module.clone()
+        clone_b = module.clone()
 
-    def reduce(self, modules):
-        # Prune modules based on complexity gradient and utility
-        pass
+        # Introduce tiny symmetry-breaking perturbations
+        clone_a = self.symmetry_breaker.apply(clone_a)
+        clone_b = self.symmetry_breaker.apply(clone_b)
 
+        return clone_a, clone_b
 
+    def evaluate_divergence(self, clone_a, clone_b):
+        return None  # placeholder for future metrics
+
+    def reduce(self, modules, complexity_penalty_fn):
+        scored = []
+        for m in modules:
+            score = getattr(m, "utility", 0.0) - complexity_penalty_fn(m)
+            scored.append((score, m))
+
+        scored.sort(key=lambda x: x[0], reverse=True)
+        surviving_modules = [x[1] for x in scored[:len(modules)//2 or 1]]
+
+        return surviving_modules
