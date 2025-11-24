@@ -3,8 +3,8 @@
 # This document provides a high-level Python-style scaffold for the Graph Model Oracle architecture.  
 # It is **not** intended as executable, optimized code, but as a structural reference for implementation and IP.
 
-```python
 from __future__ import annotations
+
 from typing import Dict, List, Optional, Any
 import numpy as np
 
@@ -16,14 +16,12 @@ import numpy as np
 class Complexity:
     """
     Tracks estimated space and time complexity for a component.
-    Values are abstract "tokens" rather than raw FLOPs/bytes.
+    Values are abstract "tokens" rather than raw FLOPs or bytes.
     """
 
-    def __init__(self,
-                 space_tokens: float = 0.0,
-                 time_tokens: float = 0.0) -> None:
-        self.space_tokens = space_tokens
-        self.time_tokens = time_tokens
+    def __init__(self, space_tokens: float = 0.0, time_tokens: float = 0.0) -> None:
+        self.space_tokens: float = space_tokens
+        self.time_tokens: float = time_tokens
 
     def add(self, other: "Complexity") -> "Complexity":
         self.space_tokens += other.space_tokens
@@ -52,36 +50,25 @@ class SplineFeature:
     and evaluation logic will live here.
     """
 
-    def __init__(self,
-                 embedding_dim: int) -> None:
-        self.embedding_dim = embedding_dim
-
-        # Parameters for representing the monotone spline
+    def __init__(self, embedding_dim: int) -> None:
+        self.embedding_dim: int = embedding_dim
         self.spline_params: Optional[np.ndarray] = None
-
-        # Permutation that maps canonical (sorted) index space
-        # back into some module-specific view.
-        self.learned_permutation: Optional[np.ndarray] = None
 
     def canonicalize(self, x: np.ndarray) -> np.ndarray:
         """
-        Sort x and store any canonicalization state needed.
-        Returns the sorted vector.
+        Sort x and return the monotone version.
         """
-        sorted_x = np.sort(x)
-        # Additional bookkeeping can occur here.
+        sorted_x: np.ndarray = np.sort(x)
         return sorted_x
 
     def fit_spline(self, sorted_x: np.ndarray) -> None:
         """
         Fit monotone spline parameters to the sorted vector.
-        Placeholder: in practice, call a spline fitter here.
+        Placeholder: just a moving average update.
         """
-        # Example stub: represent spline by sampling at fixed positions.
         if self.spline_params is None:
             self.spline_params = np.copy(sorted_x)
         else:
-            # Could be updated/learned via gradient-based methods.
             self.spline_params = 0.5 * self.spline_params + 0.5 * sorted_x
 
     def to_embedding(self, sorted_x: np.ndarray) -> np.ndarray:
@@ -92,11 +79,85 @@ class SplineFeature:
         if self.spline_params is None:
             self.fit_spline(sorted_x)
 
-        # For now, just truncate/pad spline_params to embedding_dim.
-        embedding = np.zeros(self.embedding_dim)
-        length = min(self.embedding_dim, len(self.spline_params))
-        embedding[:length] = self.spline_params[:length]
+        embedding: np.ndarray = np.zeros(self.embedding_dim)
+        if self.spline_params is None:
+            return embedding
+
+        max_length: int = min(self.embedding_dim, len(self.spline_params))
+        for index in range(max_length):
+            embedding[index] = float(self.spline_params[index])
+
         return embedding
+
+
+# ============================================================
+# SECTION 2b — Permutation Families (Continuous Index Geometry)
+# ============================================================
+
+class PermutationFamily:
+    """
+    Continuous parameterization of a family of permutations.
+
+    Concept:
+        A learnable function f : [0,1] → ℝ whose sampled outputs
+        determine a permutation for any vector length n:
+
+            t_i = i / (n - 1)    for n > 1
+            s_i = f(t_i)
+            perm = argsort(s_i)
+
+        This preserves:
+            - universality across variable input lengths,
+            - smooth gradient-based learning,
+            - local expert-specific geometry,
+            - invariance to raw input ordering.
+    """
+
+    def __init__(self, num_basis: int = 8) -> None:
+        self.num_basis: int = num_basis
+        self.coefficients: np.ndarray = np.random.randn(num_basis) * 0.01
+
+    def _basis(self, t: float) -> np.ndarray:
+        """
+        Basis functions over t in [0, 1].
+        For now: polynomial basis [1, t, t^2, ..., t^(num_basis-1)].
+        """
+        values: List[float] = []
+        current_power: float = 1.0
+        for basis_index in range(self.num_basis):
+            values.append(current_power)
+            current_power = current_power * t
+        return np.array(values, dtype=float)
+
+    def score(self, t: float) -> float:
+        """
+        Compute f(t) = coefficients · basis(t).
+        """
+        basis_values: np.ndarray = self._basis(t)
+        score_value: float = float(np.dot(self.coefficients, basis_values))
+        return score_value
+
+    def generate(self, length: int) -> np.ndarray:
+        """
+        Generate a discrete permutation for a vector of size `length`.
+        Returns an array of indices.
+        """
+        if length <= 1:
+            return np.arange(length)
+
+        ts: np.ndarray = np.zeros(length, dtype=float)
+        if length == 1:
+            ts[0] = 0.0
+        else:
+            for index in range(length):
+                ts[index] = float(index) / float(length - 1)
+
+        scores: np.ndarray = np.zeros(length, dtype=float)
+        for index in range(length):
+            scores[index] = self.score(float(ts[index]))
+
+        permutation: np.ndarray = np.argsort(scores)
+        return permutation
 
 
 # ============================================================
@@ -115,16 +176,13 @@ class QKVLayer:
     projections over spline embeddings or module states.
     """
 
-    def __init__(self,
-                 input_dim: int,
-                 output_dim: int) -> None:
-        self.input_dim = input_dim
-        self.output_dim = output_dim
+    def __init__(self, input_dim: int, output_dim: int) -> None:
+        self.input_dim: int = input_dim
+        self.output_dim: int = output_dim
 
-        # Q, K, V projection matrices
-        self.Q: np.ndarray = np.random.randn(input_dim, output_dim) * 0.01
-        self.K: np.ndarray = np.random.randn(input_dim, output_dim) * 0.01
-        self.V: np.ndarray = np.random.randn(input_dim, output_dim) * 0.01
+        self.matrix_q: np.ndarray = np.random.randn(input_dim, output_dim) * 0.01
+        self.matrix_k: np.ndarray = np.random.randn(input_dim, output_dim) * 0.01
+        self.matrix_v: np.ndarray = np.random.randn(input_dim, output_dim) * 0.01
 
     def forward(self, x: np.ndarray) -> np.ndarray:
         """
@@ -134,27 +192,31 @@ class QKVLayer:
         if x.ndim == 1:
             x = x[None, :]
 
-        Q_proj = x @ self.Q
-        K_proj = x @ self.K
-        V_proj = x @ self.V
+        q_projected: np.ndarray = x @ self.matrix_q
+        k_projected: np.ndarray = x @ self.matrix_k
+        v_projected: np.ndarray = x @ self.matrix_v
 
-        # scaled dot-product attention
-        scale = np.sqrt(self.output_dim)
-        scores = (Q_proj @ K_proj.T) / scale
+        scale: float = float(np.sqrt(self.output_dim))
+        scores: np.ndarray = (q_projected @ k_projected.T) / scale
 
-        # softmax row-wise
-        scores = scores - scores.max(axis=-1, keepdims=True)
-        weights = np.exp(scores)
-        weights_sum = weights.sum(axis=-1, keepdims=True)
-        weights = weights / np.maximum(weights_sum, 1e-9)
+        for row_index in range(scores.shape[0]):
+            row_maximum: float = float(np.max(scores[row_index]))
+            scores[row_index] = scores[row_index] - row_maximum
 
-        # mix values
-        out = weights @ V_proj
-        return out
+        weights: np.ndarray = np.exp(scores)
+
+        for row_index in range(weights.shape[0]):
+            row_sum: float = float(np.sum(weights[row_index]))
+            if row_sum <= 1e-9:
+                continue
+            weights[row_index] = weights[row_index] / row_sum
+
+        output: np.ndarray = weights @ v_projected
+        return output
 
 
 # ============================================================
-# SECTION 4 — Core: Atomic Unit of Computation
+# SECTION 4 — Core WITH Permutation Families
 # ============================================================
 
 class Core:
@@ -162,53 +224,72 @@ class Core:
     Smallest compute agent in the Graph Model.
 
     - Starts with a single SplineFeature layer.
+    - Owns one or more PermutationFamilies.
+    - Applies permutation families to reinterpret canonical spline embeddings.
     - May grow parallel Q/K/V layers.
     - May grow downstream transformation layers.
-    - Performs content-based routing/mixing.
     """
 
-    def __init__(self,
-                 input_dim: int,
-                 embedding_dim: int) -> None:
-        self.input_dim = input_dim
-        self.embedding_dim = embedding_dim
+    def __init__(self, input_dim: int, embedding_dim: int) -> None:
+        self.input_dim: int = input_dim
+        self.embedding_dim: int = embedding_dim
 
-        self.base_feature = SplineFeature(embedding_dim=embedding_dim)
+        self.base_feature: SplineFeature = SplineFeature(embedding_dim=embedding_dim)
+
+        self.permutation_families: List[PermutationFamily] = [PermutationFamily()]
+
         self.parallel_layers: List[QKVLayer] = []
-        self.downstream_layers: List[Any] = []  # could be other Cores, MLPs, etc.
+        self.downstream_layers: List[Any] = []
 
-        # Learnable scalar for NAS cloning/splitting.
         self.output_scale: float = 1.0
+
+    def apply_permutation_family(self, embedding: np.ndarray, family_index: int = 0) -> np.ndarray:
+        """
+        Apply a selected permutation family to the embedding.
+        """
+        if family_index < 0 or family_index >= len(self.permutation_families):
+            return embedding
+
+        family: PermutationFamily = self.permutation_families[family_index]
+        permutation: np.ndarray = family.generate(len(embedding))
+
+        permuted_embedding: np.ndarray = np.zeros_like(embedding)
+        for new_index in range(len(embedding)):
+            old_index: int = int(permutation[new_index])
+            permuted_embedding[new_index] = embedding[old_index]
+
+        return permuted_embedding
 
     def forward(self, x: np.ndarray) -> np.ndarray:
         """
-        x: raw input or embedding vector.
-        Returns: transformed embedding.
+        Pipeline:
+            1. canonicalize (sort)
+            2. spline embedding
+            3. apply permutation family (local geometry)
+            4. Q/K/V layers
+            5. downstream layers
+            6. output scaling
         """
-        # Step 1 — canonicalize
-        sorted_x = self.base_feature.canonicalize(x)
-        # Step 2 — encode into embedding
-        emb = self.base_feature.to_embedding(sorted_x)
+        sorted_x: np.ndarray = self.base_feature.canonicalize(x)
+        embedding: np.ndarray = self.base_feature.to_embedding(sorted_x)
 
-        # Step 3 — apply QKV layers in sequence
+        embedding = self.apply_permutation_family(embedding, family_index=0)
+
         if self.parallel_layers:
-            # treat emb as a single token for now
-            token_batch = emb[None, :]
+            token_batch: np.ndarray = embedding[None, :]
             for layer in self.parallel_layers:
                 token_batch = layer.forward(token_batch)
-            emb = token_batch[0]
+            embedding = token_batch[0]
 
-        # Step 4 — apply downstream layers if any
         for layer in self.downstream_layers:
-            emb = layer(emb)
+            embedding = layer(embedding)
 
-        # Step 5 — apply output scaling
-        emb = self.output_scale * emb
-        return emb
+        embedding = self.output_scale * embedding
+        return embedding
 
 
 # ============================================================
-# SECTION 5 — Memory, Logistics, and Contact Structures
+# SECTION 5 — Memory, Logistics, Contact
 # ============================================================
 
 class Memory:
@@ -220,15 +301,15 @@ class Memory:
         self.recent: List[np.ndarray] = []
         self.compressed: List[np.ndarray] = []
 
-        self.space_limit_tokens: float = 1e6  # abstract space budget
-        self.complexity = Complexity()
+        self.space_limit_tokens: float = 1e6
+        self.complexity: Complexity = Complexity()
 
     def store(self, embedding: np.ndarray) -> None:
         """
         Store new embedding and trigger compression when over budget.
         """
         self.recent.append(embedding)
-        self.complexity.space_tokens += embedding.size
+        self.complexity.space_tokens += float(embedding.size)
 
         if self.complexity.space_tokens > self.space_limit_tokens:
             self._compress()
@@ -236,45 +317,40 @@ class Memory:
     def _compress(self) -> None:
         """
         Compress older memory into compact representations.
-        Placeholder implementation.
+        Placeholder implementation: average all recent and reset.
         """
         if not self.recent:
             return
 
-        # Example: average everything into one vector and move it to compressed.
-        stacked = np.stack(self.recent, axis=0)
-        mean_vec = stacked.mean(axis=0)
+        stacked: np.ndarray = np.stack(self.recent, axis=0)
+        mean_vector: np.ndarray = np.mean(stacked, axis=0)
 
-        self.compressed.append(mean_vec)
+        self.compressed.append(mean_vector)
         self.recent.clear()
-        # Reset complexity estimate crudely.
-        self.complexity.space_tokens = mean_vec.size
+
+        self.complexity.space_tokens = float(mean_vector.size)
 
 
 class Contact:
     """
-    Contact structure mapping a module to another module-specific
-    permutation space and communication metadata.
+    Contact is now purely logistical.
 
-    Each module maintains:
-        contact[target_module_id] -> {permutation structures}
+    Responsibilities:
+        - target_module_id
+        - optional routing metadata
+
+    It no longer stores any permutation matrices.
     """
 
-    def __init__(self,
-                 target_module_id: str) -> None:
-        self.target_module_id = target_module_id
+    def __init__(self, target_module_id: str) -> None:
+        self.target_module_id: str = target_module_id
+        self.metadata: Dict[str, Any] = {}
 
-        # Multiple permutations can exist for interacting with a single target.
-        # Example: one permutation per core role or channel.
-        self.permutations: Dict[str, np.ndarray] = {}
+    def set_metadata(self, key: str, value: Any) -> None:
+        self.metadata[key] = value
 
-    def add_permutation(self,
-                        name: str,
-                        permutation_matrix: np.ndarray) -> None:
-        self.permutations[name] = permutation_matrix
-
-    def get_permutation(self, name: str) -> Optional[np.ndarray]:
-        return self.permutations.get(name, None)
+    def get_metadata(self, key: str) -> Any:
+        return self.metadata.get(key, None)
 
 
 class Logistics:
@@ -286,37 +362,33 @@ class Logistics:
         self.request_queue: List[Dict[str, Any]] = []
         self.response_buffer: Dict[str, Any] = {}
 
-    def enqueue_request(self,
-                        src_id: str,
-                        dst_id: str,
-                        payload: Any,
+    def enqueue_request(self, source_id: str, destination_id: str, payload: Any,
                         request_type: str = "service") -> None:
-        self.request_queue.append({
-            "src": src_id,
-            "dst": dst_id,
+        request: Dict[str, Any] = {
+            "source": source_id,
+            "destination": destination_id,
             "payload": payload,
             "type": request_type
-        })
+        }
+        self.request_queue.append(request)
 
-    def get_requests_for(self,
-                         dst_id: str) -> List[Dict[str, Any]]:
-        pending = []
-        remaining = []
-        for req in self.request_queue:
-            if req["dst"] == dst_id:
-                pending.append(req)
+    def get_requests_for(self, destination_id: str) -> List[Dict[str, Any]]:
+        pending: List[Dict[str, Any]] = []
+        remaining: List[Dict[str, Any]] = []
+
+        for request in self.request_queue:
+            if request["destination"] == destination_id:
+                pending.append(request)
             else:
-                remaining.append(req)
+                remaining.append(request)
+
         self.request_queue = remaining
         return pending
 
-    def store_response(self,
-                       request_id: str,
-                       response: Any) -> None:
+    def store_response(self, request_id: str, response: Any) -> None:
         self.response_buffer[request_id] = response
 
-    def fetch_response(self,
-                       request_id: str) -> Optional[Any]:
+    def fetch_response(self, request_id: str) -> Optional[Any]:
         return self.response_buffer.get(request_id, None)
 
 
@@ -332,37 +404,23 @@ class Module:
     - state_core: long-term identity / summary
     - context_core: fast-changing context
     - service_core: direct transformation service
-    - contact_core: decides routing / expert consultation
-
-    Each Module has memory, logistics, and contacts to other Modules.
+    - contact list: known communication peers
+    - memory, logistics, complexity
     """
 
-    def __init__(self,
-                 module_id: str,
-                 input_dim: int,
-                 embedding_dim: int) -> None:
-        self.id = module_id
-        self.input_dim = input_dim
-        self.embedding_dim = embedding_dim
+    def __init__(self, module_id: str, input_dim: int, embedding_dim: int) -> None:
+        self.id: str = module_id
+        self.input_dim: int = input_dim
+        self.embedding_dim: int = embedding_dim
 
-        # Cores
-        self.state_core = Core(input_dim, embedding_dim)
-        self.context_core = Core(embedding_dim, embedding_dim)
-        self.service_core = Core(embedding_dim, embedding_dim)
-        # Contact core is implicit: decisions are encoded in logic
-        # operating over state/context embeddings.
-        # Could be a separate Core if needed.
+        self.state_core: Core = Core(input_dim, embedding_dim)
+        self.context_core: Core = Core(embedding_dim, embedding_dim)
+        self.service_core: Core = Core(embedding_dim, embedding_dim)
 
-        # Per-module memory
-        self.memory = Memory()
-
-        # Contacts: which modules this one knows how to talk to
+        self.memory: Memory = Memory()
         self.contacts: Dict[str, Contact] = {}
 
-        # Complexity accounting
-        self.complexity = Complexity()
-
-        # NAS utility estimate (for pruning/selection).
+        self.complexity: Complexity = Complexity()
         self.utility: float = 0.0
 
     def ensure_contact(self, target_module_id: str) -> Contact:
@@ -371,49 +429,49 @@ class Module:
         return self.contacts[target_module_id]
 
     def forward_state(self, x: np.ndarray) -> np.ndarray:
-        """
-        Primary state update path.
-        """
-        state_emb = self.state_core.forward(x)
-        return state_emb
+        state_embedding: np.ndarray = self.state_core.forward(x)
+        return state_embedding
 
-    def forward_context(self, state_emb: np.ndarray,
+    def forward_context(self, state_embedding: np.ndarray,
                         external_context: Optional[np.ndarray] = None) -> np.ndarray:
-        """
-        Context update given current state and any external context.
-        """
         if external_context is not None:
-            combined = np.concatenate([state_emb, external_context], axis=0)
+            combined_list: List[float] = []
+            for value in state_embedding:
+                combined_list.append(float(value))
+            for value in external_context:
+                combined_list.append(float(value))
+            combined: np.ndarray = np.array(combined_list, dtype=float)
         else:
-            combined = state_emb
-        ctx_emb = self.context_core.forward(combined)
-        return ctx_emb
+            combined = state_embedding
 
-    def forward_service(self, ctx_emb: np.ndarray,
+        context_embedding: np.ndarray = self.context_core.forward(combined)
+        return context_embedding
+
+    def forward_service(self, context_embedding: np.ndarray,
                         request_payload: Optional[np.ndarray] = None) -> np.ndarray:
-        """
-        Service call. Stateless in principle: transforms ctx_emb
-        (optionally combined with request payload).
-        """
         if request_payload is not None:
-            combined = np.concatenate([ctx_emb, request_payload], axis=0)
+            combined_list: List[float] = []
+            for value in context_embedding:
+                combined_list.append(float(value))
+            for value in request_payload:
+                combined_list.append(float(value))
+            combined: np.ndarray = np.array(combined_list, dtype=float)
         else:
-            combined = ctx_emb
-        out_emb = self.service_core.forward(combined)
-        return out_emb
+            combined = context_embedding
+
+        output_embedding: np.ndarray = self.service_core.forward(combined)
+        return output_embedding
 
     def clone(self) -> "Module":
         """
-        Structural clone; in a real system this would deep-copy all parameters.
-        Here we approximate with a shallow template plus noise at the NAS layer.
+        Structural clone placeholder.
+        In a real implementation, parameters should be explicitly copied.
         """
-        # Note: for IP skeleton purposes, we keep this abstract.
-        cloned = Module(
+        cloned: Module = Module(
             module_id=self.id + "_clone",
             input_dim=self.input_dim,
             embedding_dim=self.embedding_dim
         )
-        # In a real implementation, we would copy weights here.
         return cloned
 
 
@@ -425,29 +483,23 @@ class MindsEye(Module):
     graph state and architecture descriptions rather than raw data.
     """
 
-    def __init__(self,
-                 module_id: str = "minds_eye",
-                 input_dim: int = 128,
-                 embedding_dim: int = 256) -> None:
+    def __init__(self, module_id: str = "minds_eye",
+                 input_dim: int = 128, embedding_dim: int = 256) -> None:
         super().__init__(module_id, input_dim, embedding_dim)
+        self.architecture_memory: Memory = Memory()
 
-        # Stores architectural snapshots, complexity curves, etc.
-        self.architecture_memory = Memory()
-
-    def update_architecture(self,
-                            graph_state: Dict[str, Any]) -> None:
+    def update_architecture(self, graph_state: Dict[str, Any]) -> None:
         """
         Update or propose changes to the architecture based on observed state.
         Placeholder; real logic would analyze module utilities, complexity,
         divergence patterns, and route NAS operations.
         """
-        # Example: store a compressed representation of the graph state.
-        dummy_embedding = np.zeros(self.embedding_dim)
+        dummy_embedding: np.ndarray = np.zeros(self.embedding_dim, dtype=float)
         self.architecture_memory.store(dummy_embedding)
 
 
 # ============================================================
-# SECTION 7 — Hierarchy, Interfaces, and I/O Modules
+# SECTION 7 — Hierarchy and Interfaces
 # ============================================================
 
 class HierarchyManager:
@@ -458,14 +510,15 @@ class HierarchyManager:
     - level_states: 'identity' or 'active'
     """
 
-    def __init__(self,
-                 num_levels: int = 33) -> None:
-        self.num_levels = num_levels
-        self.level_states: List[str] = ["identity"] * num_levels
+    def __init__(self, num_levels: int = 33) -> None:
+        self.num_levels: int = num_levels
+        self.level_states: List[str] = []
+        for _ in range(num_levels):
+            self.level_states.append("identity")
 
-    def activate_level(self, level_idx: int) -> None:
-        if 0 <= level_idx < self.num_levels:
-            self.level_states[level_idx] = "active"
+    def activate_level(self, level_index: int) -> None:
+        if 0 <= level_index < self.num_levels:
+            self.level_states[level_index] = "active"
 
 
 class Interface:
@@ -477,20 +530,18 @@ class Interface:
     - decode: embedding -> raw
     """
 
-    def __init__(self,
-                 mode: str = "input",
-                 embedding_dim: int = 256) -> None:
-        self.mode = mode
-        self.embedding_dim = embedding_dim
+    def __init__(self, mode: str = "input", embedding_dim: int = 256) -> None:
+        self.mode: str = mode
+        self.embedding_dim: int = embedding_dim
 
     def encode(self, x: np.ndarray) -> np.ndarray:
         """
         Placeholder encoder. In practice, could be a learned module.
         """
-        if x.size >= self.embedding_dim:
-            return x[:self.embedding_dim]
-        result = np.zeros(self.embedding_dim)
-        result[:x.size] = x
+        result: np.ndarray = np.zeros(self.embedding_dim, dtype=float)
+        limit: int = min(self.embedding_dim, x.size)
+        for index in range(limit):
+            result[index] = float(x[index])
         return result
 
     def decode(self, y: np.ndarray) -> np.ndarray:
@@ -513,41 +564,33 @@ class SymmetryBreaker:
     in identical parameter subspaces.
     """
 
-    def __init__(self,
-                 noise_scale: float = 1e-5) -> None:
-        self.noise_scale = noise_scale
+    def __init__(self, noise_scale: float = 1e-5) -> None:
+        self.noise_scale: float = noise_scale
 
     def perturb_tensor(self, tensor: Optional[np.ndarray]) -> Optional[np.ndarray]:
         if tensor is None:
             return None
-        noise = self.noise_scale * np.random.randn(*tensor.shape)
+        noise: np.ndarray = self.noise_scale * np.random.randn(*tensor.shape)
         return tensor + noise
 
     def perturb_core(self, core: Core) -> None:
         if core.base_feature.spline_params is not None:
-            core.base_feature.spline_params = self.perturb_tensor(
-                core.base_feature.spline_params
-            )
+            core.base_feature.spline_params = self.perturb_tensor(core.base_feature.spline_params)
 
-        if core.base_feature.learned_permutation is not None:
-            core.base_feature.learned_permutation = self.perturb_tensor(
-                core.base_feature.learned_permutation
-            )
+        for permutation_family in core.permutation_families:
+            permutation_family.coefficients = self.perturb_tensor(permutation_family.coefficients)
 
         for layer in core.parallel_layers:
-            if layer.Q is not None:
-                layer.Q = self.perturb_tensor(layer.Q)
-            if layer.K is not None:
-                layer.K = self.perturb_tensor(layer.K)
-            if layer.V is not None:
-                layer.V = self.perturb_tensor(layer.V)
+            layer.matrix_q = self.perturb_tensor(layer.matrix_q)
+            layer.matrix_k = self.perturb_tensor(layer.matrix_k)
+            layer.matrix_v = self.perturb_tensor(layer.matrix_v)
 
     def apply(self, module: Module) -> Module:
         """
         Apply symmetry-breaking perturbations to all Cores inside a Module.
         """
-        for core_attr in ["state_core", "context_core", "service_core"]:
-            core = getattr(module, core_attr, None)
+        for core_attribute in ["state_core", "context_core", "service_core"]:
+            core: Core = getattr(module, core_attribute, None)
             if core is not None:
                 self.perturb_core(core)
         return module
@@ -558,14 +601,16 @@ class NASController:
     Controls exploration (cloning) and reduction (pruning) of Modules.
 
     Uses:
-    - SymmetryBreaker for clone divergence,
-    - complexity penalties for pruning,
-    - utility estimates for selection.
+    - SymmetryBreaker for clone divergence
+    - complexity penalties for pruning
+    - utility estimates for selection
     """
 
-    def __init__(self,
-                 symmetry_breaker: Optional[SymmetryBreaker] = None) -> None:
-        self.symmetry_breaker = symmetry_breaker or SymmetryBreaker()
+    def __init__(self, symmetry_breaker: Optional[SymmetryBreaker] = None) -> None:
+        if symmetry_breaker is None:
+            self.symmetry_breaker = SymmetryBreaker()
+        else:
+            self.symmetry_breaker = symmetry_breaker
 
     def explore(self, module: Module) -> List[Module]:
         """
@@ -574,21 +619,19 @@ class NASController:
         Returns:
             [clone_a, clone_b]
         """
-        clone_a = module.clone()
-        clone_b = module.clone()
+        clone_a: Module = module.clone()
+        clone_b: Module = module.clone()
 
         clone_a = self.symmetry_breaker.apply(clone_a)
         clone_b = self.symmetry_breaker.apply(clone_b)
 
-        # Split the output scale to preserve overall magnitude
-        scale = module.state_core.output_scale
+        scale: float = module.state_core.output_scale
         clone_a.state_core.output_scale = 0.5 * scale
         clone_b.state_core.output_scale = 0.5 * scale
 
         return [clone_a, clone_b]
 
-    def reduce(self,
-               modules: List[Module],
+    def reduce(self, modules: List[Module],
                complexity_penalty_fn: Any) -> List[Module]:
         """
         Prune redundant modules based on:
@@ -597,18 +640,20 @@ class NASController:
 
         Returns a selected subset of modules.
         """
-        scored: List[tuple[float, Module]] = []
+        scored: List[Dict[str, Any]] = []
 
-        for m in modules:
-            penalty = complexity_penalty_fn(m)
-            score = m.utility - penalty
-            scored.append((score, m))
+        for module in modules:
+            penalty: float = float(complexity_penalty_fn(module))
+            score: float = float(module.utility) - penalty
+            scored.append({"score": score, "module": module})
 
-        scored.sort(key=lambda pair: pair[0], reverse=True)
+        scored.sort(key=lambda item: item["score"], reverse=True)
 
-        # Simple heuristic: keep top half (at least one).
-        num_keep = max(len(scored) // 2, 1)
-        survivors = [pair[1] for pair in scored[:num_keep]]
+        number_to_keep: int = max(len(scored) // 2, 1)
+        survivors: List[Module] = []
+        for index in range(number_to_keep):
+            survivors.append(scored[index]["module"])
+
         return survivors
 
 
@@ -628,51 +673,46 @@ class GraphModel:
     Orchestrates training and inference.
     """
 
-    def __init__(self,
-                 input_dim: int,
-                 embedding_dim: int,
+    def __init__(self, input_dim: int, embedding_dim: int,
                  modules: Optional[List[Module]] = None) -> None:
-        self.input_interface = Interface(mode="input", embedding_dim=embedding_dim)
-        self.output_interface = Interface(mode="output", embedding_dim=embedding_dim)
+        self.input_interface: Interface = Interface(mode="input", embedding_dim=embedding_dim)
+        self.output_interface: Interface = Interface(mode="output", embedding_dim=embedding_dim)
 
-        # Default simple input/output modules if none provided
-        if modules is None or not modules:
-            input_module = Module("input_module", input_dim, embedding_dim)
-            output_module = Module("output_module", embedding_dim, embedding_dim)
+        if modules is None or len(modules) == 0:
+            input_module: Module = Module("input_module", input_dim, embedding_dim)
+            output_module: Module = Module("output_module", embedding_dim, embedding_dim)
             self.modules: List[Module] = [input_module, output_module]
         else:
             self.modules = modules
 
-        self.minds_eye = MindsEye()
-        self.hierarchy = HierarchyManager()
-        self.logistics = Logistics()
-        self.nas = NASController()
+        self.minds_eye: MindsEye = MindsEye()
+        self.hierarchy: HierarchyManager = HierarchyManager()
+        self.logistics: Logistics = Logistics()
+        self.nas: NASController = NASController()
 
     def forward(self, x: np.ndarray) -> np.ndarray:
         """
         Simple forward pass:
         - encode input,
         - send through input_module,
-        - route through any intermediate modules (placeholder),
+        - (placeholder) route through any intermediate modules,
         - send through output_module,
         - decode to environment space.
         """
-        encoded = self.input_interface.encode(x)
+        encoded: np.ndarray = self.input_interface.encode(x)
 
-        # For now, assume [0] is input_module and [-1] is output_module.
-        input_module = self.modules[0]
-        output_module = self.modules[-1]
+        input_module: Module = self.modules[0]
+        output_module: Module = self.modules[-1]
 
-        state_emb = input_module.forward_state(encoded)
-        ctx_emb = input_module.forward_context(state_emb)
-        mid_emb = input_module.forward_service(ctx_emb)
+        state_embedding: np.ndarray = input_module.forward_state(encoded)
+        context_embedding: np.ndarray = input_module.forward_context(state_embedding)
+        mid_embedding: np.ndarray = input_module.forward_service(context_embedding)
 
-        # Placeholder for intermediate routing
-        out_state = output_module.forward_state(mid_emb)
-        out_ctx = output_module.forward_context(out_state)
-        out_emb = output_module.forward_service(out_ctx)
+        output_state: np.ndarray = output_module.forward_state(mid_embedding)
+        output_context: np.ndarray = output_module.forward_context(output_state)
+        output_embedding: np.ndarray = output_module.forward_service(output_context)
 
-        decoded = self.output_interface.decode(out_emb)
+        decoded: np.ndarray = self.output_interface.decode(output_embedding)
         return decoded
 
     def step_training(self, batch: np.ndarray) -> None:
@@ -685,5 +725,5 @@ class GraphModel:
         - possibly call NAS controller,
         - possibly update MindsEye.
         """
-        _ = self.forward(batch)  # ignore result in this skeleton
+        _ = self.forward(batch)
         # TODO: implement loss computation, gradient updates, NAS logic, etc.
