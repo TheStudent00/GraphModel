@@ -129,6 +129,105 @@ This canonicalization is central to Graph Model’s universality.
 
 ---
 
+## 4.1 Permutation Families as Core-Level Geometry
+
+Permutation logic is no longer stored inside Contact structures.  
+Instead, each Core owns one or more **Permutation Families**, a continuous parameterization of index-ordering rules that can generate discrete permutations for any input length.
+
+A Permutation Family `F` is defined as a learnable continuous mapping:
+
+    f : [0, 1] → ℝ
+
+where:
+- an input vector of length `n` induces a discretization `t_i = i/n`,
+- the outputs `f(t_i)` are sorted to produce a discrete permutation of indices.
+
+Thus:
+
+    perm_n = argsort( f( linspace(0,1,n) ) )
+
+This creates a *family of permutations* across all possible input lengths, removing the discrete-size limitation inherent in traditional permutations.
+
+This design preserves:
+- universality across variable-length inputs,
+- modular expert-geometry,
+- reversibility of monotone-spline canonicalization,
+- and scalability to large, heterogeneous module graphs.
+
+Each Core may maintain multiple families, e.g.:
+
+    "canonical" → F0
+    "alt1"      → F1
+    "alt2"      → F2
+
+Selection of which family to use may depend on state, context, or module role.
+
+---
+
+## 4.2 Receiver-Centric Feature-Space Interpretation
+
+Permutation Families belong to the **receiving module**, not the sender.
+
+This ensures:
+- The receiver controls its own feature-space geometry.
+- Cores can maintain a stable internal canonical form.
+- Q/K/V layers operate in a consistent local coordinate frame.
+- Expertise remains localized and coherent.
+- The number of permutations is O(modules × families) instead of O(modules²).
+
+Incoming messages are therefore processed as:
+
+    raw_in → monotone-spline sorting → F_k permutation → Q/K/V projection
+
+This enforces a clean separation between:
+- universal spline geometry (shared by all modules),
+- local coordinate frames (defined per-Core through Permutation Families),
+- and communication metadata (handled by Contact).
+
+---
+
+## 4.3 Contact Structure Simplification
+
+`class Contact` no longer stores permutation matrices.
+
+Its role is now minimal and strictly logistical:
+
+    - identify target module
+    - store communication metadata
+    - track request/response channels
+    - optionally store sparse routing preferences
+
+The Contact object is no longer responsible for index geometry.
+
+This prevents:
+- combinatorial explosion of pairwise per-module permutations,
+- degradation of expert-local identity,
+- cross-module entanglement of feature geometry.
+
+The geometry is handled solely in Cores.
+
+---
+
+## 4.4 Integration With Attention and Feature Canonicalization
+
+Cores now follow the consistent pipeline:
+
+1. **Sort** incoming vector into monotone canonical curve.  
+2. **Spline-encode** canonicalized curvature.  
+3. **Select** a permutation family based on internal logic.  
+4. **Generate** a discrete permutation for the vector length.  
+5. **Reorder** the spline embedding into the local coordinate frame.  
+6. **Apply Q/K/V attention** within that frame.
+
+This preserves:
+- universality of splines,
+- diversity of expert geometries,
+- compatibility of heterogeneous modules,
+- and stability of all attention operations.
+
+Permutation Families act as **local geometric dialects** spoken by each expert module.
+
+
 # 5. Attention as an Atomic Routing Primitive
 
 Attention is not a layer—it is a primitive inside every Core:
