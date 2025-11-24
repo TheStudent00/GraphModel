@@ -129,60 +129,45 @@ This canonicalization is central to Graph Model’s universality.
 
 ---
 
-## 4.1 Permutation Families as Core-Level Geometry
+## 4.1 Spectral Permutation Families as Core-Level Geometry
 
-Permutation logic is no longer stored inside Contact structures.  
-Instead, each Core owns one or more **Permutation Families**, a continuous parameterization of index-ordering rules that can generate discrete permutations for any input length.
+Permutation logic is no longer stored inside Contact structures, nor is it modeled by simple curves. Instead, each Core owns one or more **Spectral Permutation Families**—continuous, learnable fields that generate discrete permutations for any input length via a hybrid Fourier basis.
 
-A Permutation Family `F` is defined as a learnable continuous mapping:
+A Spectral Permutation Family `F` is defined as a learnable function $f(t)$ composed of two distinct frequency regimes:
 
-    f : [0, 1] → ℝ
+1.  **Absolute Frequencies (Global Geometry):**
+    Standard Fourier terms $\sin(k \pi t)$ that capture macroscopic reordering (e.g., rotation, reversal, pivot-sorting). These are invariant to input size $N$.
 
-where:
-- an input vector of length `n` induces a discretization `t_i = i/n`,
-- the outputs `f(t_i)` are sorted to produce a discrete permutation of indices.
+2.  **Relative Frequencies (Microstructure):**
+    $N$-dependent terms $\sin(k \cdot N \cdot \pi t)$ that capture relative structural patterns (e.g., interleaving, local neighbor swaps). These scale their frequency to match the resolution of the input vector.
 
-Thus:
+**The Nyquist Guardrail:**
+To prevent aliasing—where high-frequency logic creates chaotic artifacts on small vectors—the system applies a dynamic **Nyquist Mask**. For an input of size $N$, any frequency component $f_{comp} > N/2$ is zeroed out. This ensures universality across variable-length inputs without aliasing.
 
-    perm_n = argsort( f( linspace(0,1,n) ) )
-
-This creates a *family of permutations* across all possible input lengths, removing the discrete-size limitation inherent in traditional permutations.
-
-This design preserves:
-- universality across variable-length inputs,
-- modular expert-geometry,
-- reversibility of monotone-spline canonicalization,
-- and scalability to large, heterogeneous module graphs.
-
-Each Core may maintain multiple families, e.g.:
-
-    "canonical" → F0
-    "alt1"      → F1
-    "alt2"      → F2
-
-Selection of which family to use may depend on state, context, or module role.
+Each Core may maintain multiple families (e.g., "canonical" → F0, "alt1" → F1), allowing it to project the same spline-standardized features into different local geometric dialects depending on state or context.
 
 ---
 
 ## 4.2 Receiver-Centric Feature-Space Interpretation
 
-Permutation Families belong to the **receiving module**, not the sender.
+Permutation Families belong strictly to the **receiving module**, not the sender.
 
 This ensures:
-- The receiver controls its own feature-space geometry.
-- Cores can maintain a stable internal canonical form.
-- Q/K/V layers operate in a consistent local coordinate frame.
-- Expertise remains localized and coherent.
-- The number of permutations is O(modules × families) instead of O(modules²).
+- The receiver controls its own feature-space geometry (Subjective Interpretation).
+- Cores maintain a stable internal canonical form regardless of input source.
+- The number of permutations scales as $O(\text{modules} \times \text{families})$ rather than $O(\text{modules}^2)$.
 
-Incoming messages are therefore processed as:
+**Differentiable Rank & Pipeline:**
+Incoming messages are processed through a differentiable pipeline:
 
-    raw_in → monotone-spline sorting → F_k permutation → Q/K/V projection
+    raw_in → monotone-spline sorting → Spectral f(t) scores → SoftSort/Relaxation → Q/K/V projection
+
+Unlike traditional discrete methods (Gumbel-Sinkhorn), this architecture learns the **Law of the Permutation** via **Spectral Regularization**. By penalizing high-frequency coefficients, the system enforces a "Complexity Gradient" on the structure itself, learning simple geometric moves (low cost) before evolving complex, high-frequency shuffles.
 
 This enforces a clean separation between:
-- universal spline geometry (shared by all modules),
-- local coordinate frames (defined per-Core through Permutation Families),
-- and communication metadata (handled by Contact).
+- **Universal Reality:** Spline geometry (shared by all modules),
+- **Local Perspective:** Spectral coordinate frames (defined per-Core),
+- **Communication:** Metadata (handled by Contact).
 
 ---
 
