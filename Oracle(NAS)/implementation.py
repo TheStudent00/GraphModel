@@ -1,7 +1,7 @@
 # Graph Model Implementation Notes
 
-This document provides a high-level Python-style scaffold for the Graph Model Oracle architecture.  
-It is **not** intended as executable, optimized code, but as a structural reference for implementation and IP.
+# This document provides a high-level Python-style scaffold for the Graph Model Oracle architecture.  
+# It is **not** intended as executable, optimized code, but as a structural reference for implementation and IP.
 
 ```python
 from __future__ import annotations
