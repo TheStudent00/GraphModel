@@ -1,442 +1,553 @@
-# Graph Model Software Implementation Notes
-# -----------------------------------------
-# This document outlines the software-side intellectual property (IP) for the
-# Graph Model Oracle architecture. It is not intended to be executable code,
-# but a structural reference for how the architecture should be organized in
-# implementation. This forms the basis for protected design abstractions under
-# the OTU Green License.
+# Graph Model Implementation Notes
 
-# SECTION 1 — Core Software Structures
-# ------------------------------------
-# Below are the primary software abstractions that implement the high-level
-# architectural components described in the IP document.
+This document provides a high-level Python-style scaffold for the Graph Model Oracle architecture.  
+It is **not** intended as executable, optimized code, but as a structural reference for implementation and IP.
+
+```python
+from __future__ import annotations
+from typing import Dict, List, Optional, Any
+import numpy as np
+
+
+# ============================================================
+# SECTION 1 — Core Data Structures and Utility Classes
+# ============================================================
+
+class Complexity:
+    """
+    Tracks estimated space and time complexity for a component.
+    Values are abstract "tokens" rather than raw FLOPs/bytes.
+    """
+
+    def __init__(self,
+                 space_tokens: float = 0.0,
+                 time_tokens: float = 0.0) -> None:
+        self.space_tokens = space_tokens
+        self.time_tokens = time_tokens
+
+    def add(self, other: "Complexity") -> "Complexity":
+        self.space_tokens += other.space_tokens
+        self.time_tokens += other.time_tokens
+        return self
+
+    def copy(self) -> "Complexity":
+        return Complexity(self.space_tokens, self.time_tokens)
+
+
+# ============================================================
+# SECTION 2 — Spline Feature Canonicalization
+# ============================================================
 
 class SplineFeature:
     """
-    Canonicalized feature structure.
-    - Input vector is sorted.
-    - Sorted vector is projected into a monotone spline representation.
-    - Learned permutation remaps spline-structured features back into
-      the Core's embedding coordinate system.
+    Canonicalized feature representation.
 
-    This enables universal feature geometry across Modules.
+    Pipeline:
+    - Receive a raw feature vector x.
+    - Sort x to obtain a monotone curve.
+    - Fit monotone spline parameters to the sorted curve.
+    - Map into an embedding via learned parameters.
+
+    This class is a conceptual placeholder: the actual spline fitting
+    and evaluation logic will live here.
     """
-    def __init__(self):
-        self.sorted_values = None
-        self.spline_params = None
-        self.learned_permutation = None
 
-    def canonicalize(self, x):
-        pass
+    def __init__(self,
+                 embedding_dim: int) -> None:
+        self.embedding_dim = embedding_dim
 
-    def to_embedding(self):
-        pass
+        # Parameters for representing the monotone spline
+        self.spline_params: Optional[np.ndarray] = None
 
+        # Permutation that maps canonical (sorted) index space
+        # back into some module-specific view.
+        self.learned_permutation: Optional[np.ndarray] = None
+
+    def canonicalize(self, x: np.ndarray) -> np.ndarray:
+        """
+        Sort x and store any canonicalization state needed.
+        Returns the sorted vector.
+        """
+        sorted_x = np.sort(x)
+        # Additional bookkeeping can occur here.
+        return sorted_x
+
+    def fit_spline(self, sorted_x: np.ndarray) -> None:
+        """
+        Fit monotone spline parameters to the sorted vector.
+        Placeholder: in practice, call a spline fitter here.
+        """
+        # Example stub: represent spline by sampling at fixed positions.
+        if self.spline_params is None:
+            self.spline_params = np.copy(sorted_x)
+        else:
+            # Could be updated/learned via gradient-based methods.
+            self.spline_params = 0.5 * self.spline_params + 0.5 * sorted_x
+
+    def to_embedding(self, sorted_x: np.ndarray) -> np.ndarray:
+        """
+        Projects the spline representation into an embedding vector.
+        Placeholder: currently returns a simple projection.
+        """
+        if self.spline_params is None:
+            self.fit_spline(sorted_x)
+
+        # For now, just truncate/pad spline_params to embedding_dim.
+        embedding = np.zeros(self.embedding_dim)
+        length = min(self.embedding_dim, len(self.spline_params))
+        embedding[:length] = self.spline_params[:length]
+        return embedding
+
+
+# ============================================================
+# SECTION 3 — Q/K/V Atomic Attention Layer
+# ============================================================
 
 class QKVLayer:
     """
-    Atomic attention-like structure.
-    Each Core generates:
-    - Q: what the Core is looking for
-    - K: how the Core appears to others
-    - V: what the Core communicates
+    Atomic attention structure for a Core.
 
-    The softmax(QK) * V operation is built in.
+    - Q: what the Core is querying for.
+    - K: how inputs expose their structure.
+    - V: what is communicated when attended to.
+
+    This is a conceptual skeleton; in practice, Q/K/V will be linear
+    projections over spline embeddings or module states.
     """
-    def __init__(self):
-        self.Q = None
-        self.K = None
-        self.V = None
 
-    def forward(self, x):
-        # 1. Compute Q, K, V representations of x
-        # 2. Compute attention weights via softmax(QK)
-        # 3. Compute mixed output = softmax(QK) @ V
-        pass
+    def __init__(self,
+                 input_dim: int,
+                 output_dim: int) -> None:
+        self.input_dim = input_dim
+        self.output_dim = output_dim
 
+        # Q, K, V projection matrices
+        self.Q: np.ndarray = np.random.randn(input_dim, output_dim) * 0.01
+        self.K: np.ndarray = np.random.randn(input_dim, output_dim) * 0.01
+        self.V: np.ndarray = np.random.randn(input_dim, output_dim) * 0.01
+
+    def forward(self, x: np.ndarray) -> np.ndarray:
+        """
+        x: shape (num_tokens, input_dim)
+        Returns: shape (num_tokens, output_dim)
+        """
+        if x.ndim == 1:
+            x = x[None, :]
+
+        Q_proj = x @ self.Q
+        K_proj = x @ self.K
+        V_proj = x @ self.V
+
+        # scaled dot-product attention
+        scale = np.sqrt(self.output_dim)
+        scores = (Q_proj @ K_proj.T) / scale
+
+        # softmax row-wise
+        scores = scores - scores.max(axis=-1, keepdims=True)
+        weights = np.exp(scores)
+        weights_sum = weights.sum(axis=-1, keepdims=True)
+        weights = weights / np.maximum(weights_sum, 1e-9)
+
+        # mix values
+        out = weights @ V_proj
+        return out
+
+
+# ============================================================
+# SECTION 4 — Core: Atomic Unit of Computation
+# ============================================================
 
 class Core:
     """
     Smallest compute agent in the Graph Model.
 
     - Starts with a single SplineFeature layer.
-    - May dynamically expand with parallel (Q/K/V) layers.
-    - May add downstream layers for deeper transformations.
-    - Performs content-based routing.
+    - May grow parallel Q/K/V layers.
+    - May grow downstream transformation layers.
+    - Performs content-based routing/mixing.
     """
-    def __init__(self):
-        self.base_features = SplineFeature()
-        self.parallel_layers = []  # includes Q/K/V expansions
-        self.downstream_layers = []
 
-    def forward(self, x):
-        # Step 1: canonicalize and embed
-        base = self.base_features.canonicalize(x)
+    def __init__(self,
+                 input_dim: int,
+                 embedding_dim: int) -> None:
+        self.input_dim = input_dim
+        self.embedding_dim = embedding_dim
 
-        # Step 2: apply QKV layers if present
-        for layer in self.parallel_layers:
-            base = layer.forward(base)
+        self.base_feature = SplineFeature(embedding_dim=embedding_dim)
+        self.parallel_layers: List[QKVLayer] = []
+        self.downstream_layers: List[Any] = []  # could be other Cores, MLPs, etc.
 
-        # Step 3: apply downstream layers
+        # Learnable scalar for NAS cloning/splitting.
+        self.output_scale: float = 1.0
+
+    def forward(self, x: np.ndarray) -> np.ndarray:
+        """
+        x: raw input or embedding vector.
+        Returns: transformed embedding.
+        """
+        # Step 1 — canonicalize
+        sorted_x = self.base_feature.canonicalize(x)
+        # Step 2 — encode into embedding
+        emb = self.base_feature.to_embedding(sorted_x)
+
+        # Step 3 — apply QKV layers in sequence
+        if self.parallel_layers:
+            # treat emb as a single token for now
+            token_batch = emb[None, :]
+            for layer in self.parallel_layers:
+                token_batch = layer.forward(token_batch)
+            emb = token_batch[0]
+
+        # Step 4 — apply downstream layers if any
         for layer in self.downstream_layers:
-            base = layer(base)
+            emb = layer(emb)
 
-        return base
+        # Step 5 — apply output scaling
+        emb = self.output_scale * emb
+        return emb
 
 
-# SECTION 2 — Module-Level Structures
-# -----------------------------------
+# ============================================================
+# SECTION 5 — Memory, Logistics, and Contact Structures
+# ============================================================
 
 class Memory:
     """
-    Memory subsystem with compression/decompression.
-    - Recent memories stored verbatim.
-    - Older memories compressed with increasing curvature.
-    - Compression controlled by complexity constraints.
+    Memory subsystem combining uncompressed and compressed stores.
     """
-    def __init__(self):
-        self.raw_store = []
-        self.compressed_store = []
-        self.core_compressor = None
-        self.core_decompressor = None
 
-    def store(self, x):
-        pass
+    def __init__(self) -> None:
+        self.recent: List[np.ndarray] = []
+        self.compressed: List[np.ndarray] = []
 
-    def compress_if_needed(self):
-        pass
+        self.space_limit_tokens: float = 1e6  # abstract space budget
+        self.complexity = Complexity()
+
+    def store(self, embedding: np.ndarray) -> None:
+        """
+        Store new embedding and trigger compression when over budget.
+        """
+        self.recent.append(embedding)
+        self.complexity.space_tokens += embedding.size
+
+        if self.complexity.space_tokens > self.space_limit_tokens:
+            self._compress()
+
+    def _compress(self) -> None:
+        """
+        Compress older memory into compact representations.
+        Placeholder implementation.
+        """
+        if not self.recent:
+            return
+
+        # Example: average everything into one vector and move it to compressed.
+        stacked = np.stack(self.recent, axis=0)
+        mean_vec = stacked.mean(axis=0)
+
+        self.compressed.append(mean_vec)
+        self.recent.clear()
+        # Reset complexity estimate crudely.
+        self.complexity.space_tokens = mean_vec.size
+
+
+class Contact:
+    """
+    Contact structure mapping a module to another module-specific
+    permutation space and communication metadata.
+
+    Each module maintains:
+        contact[target_module_id] -> {permutation structures}
+    """
+
+    def __init__(self,
+                 target_module_id: str) -> None:
+        self.target_module_id = target_module_id
+
+        # Multiple permutations can exist for interacting with a single target.
+        # Example: one permutation per core role or channel.
+        self.permutations: Dict[str, np.ndarray] = {}
+
+    def add_permutation(self,
+                        name: str,
+                        permutation_matrix: np.ndarray) -> None:
+        self.permutations[name] = permutation_matrix
+
+    def get_permutation(self, name: str) -> Optional[np.ndarray]:
+        return self.permutations.get(name, None)
 
 
 class Logistics:
     """
-    Handles module-to-module communication.
-    - Encodes requests
-    - Applies sparse/dense learned permutations
-    - Sends responses encoded in embedding space
+    Handles request/response and routing between Modules.
     """
-    def __init__(self):
-        self.requests = {}
-        self.responses = {}
 
-    def handle_request(self, src_id):
-        pass
+    def __init__(self) -> None:
+        self.request_queue: List[Dict[str, Any]] = []
+        self.response_buffer: Dict[str, Any] = {}
 
-    def send_response(self, dest_id):
-        pass
+    def enqueue_request(self,
+                        src_id: str,
+                        dst_id: str,
+                        payload: Any,
+                        request_type: str = "service") -> None:
+        self.request_queue.append({
+            "src": src_id,
+            "dst": dst_id,
+            "payload": payload,
+            "type": request_type
+        })
 
+    def get_requests_for(self,
+                         dst_id: str) -> List[Dict[str, Any]]:
+        pending = []
+        remaining = []
+        for req in self.request_queue:
+            if req["dst"] == dst_id:
+                pending.append(req)
+            else:
+                remaining.append(req)
+        self.request_queue = remaining
+        return pending
+
+    def store_response(self,
+                       request_id: str,
+                       response: Any) -> None:
+        self.response_buffer[request_id] = response
+
+    def fetch_response(self,
+                       request_id: str) -> Optional[Any]:
+        return self.response_buffer.get(request_id, None)
+
+
+# ============================================================
+# SECTION 6 — Module and MindsEye
+# ============================================================
 
 class Module:
     """
-    Container for Cores, Memory, Logistics, and state.
-    Specializes into:
-    - state_core
-    - context_core
-    - service_core
+    A Module is an adaptive agent-like computational unit.
 
-    May evolve via NAS: expand, merge, or prune substructures.
+    Roles:
+    - state_core: long-term identity / summary
+    - context_core: fast-changing context
+    - service_core: direct transformation service
+    - contact_core: decides routing / expert consultation
+
+    Each Module has memory, logistics, and contacts to other Modules.
     """
-    def __init__(self):
-        self.state_core = Core()
-        self.context_core = Core()
-        self.service_core = Core()
 
+    def __init__(self,
+                 module_id: str,
+                 input_dim: int,
+                 embedding_dim: int) -> None:
+        self.id = module_id
+        self.input_dim = input_dim
+        self.embedding_dim = embedding_dim
+
+        # Cores
+        self.state_core = Core(input_dim, embedding_dim)
+        self.context_core = Core(embedding_dim, embedding_dim)
+        self.service_core = Core(embedding_dim, embedding_dim)
+        # Contact core is implicit: decisions are encoded in logic
+        # operating over state/context embeddings.
+        # Could be a separate Core if needed.
+
+        # Per-module memory
         self.memory = Memory()
-        self.logistics = Logistics()
 
-    def forward(self, x):
-        # Base processing pipeline for module behavior
-        s = self.state_core.forward(x)
-        c = self.context_core.forward(s)
-        o = self.service_core.forward(c)
-        return o
+        # Contacts: which modules this one knows how to talk to
+        self.contacts: Dict[str, Contact] = {}
 
+        # Complexity accounting
+        self.complexity = Complexity()
 
-# SECTION 3 — Mind's Eye (Meta-Learner)
-# --------------------------------------
+        # NAS utility estimate (for pruning/selection).
+        self.utility: float = 0.0
+
+    def ensure_contact(self, target_module_id: str) -> Contact:
+        if target_module_id not in self.contacts:
+            self.contacts[target_module_id] = Contact(target_module_id)
+        return self.contacts[target_module_id]
+
+    def forward_state(self, x: np.ndarray) -> np.ndarray:
+        """
+        Primary state update path.
+        """
+        state_emb = self.state_core.forward(x)
+        return state_emb
+
+    def forward_context(self, state_emb: np.ndarray,
+                        external_context: Optional[np.ndarray] = None) -> np.ndarray:
+        """
+        Context update given current state and any external context.
+        """
+        if external_context is not None:
+            combined = np.concatenate([state_emb, external_context], axis=0)
+        else:
+            combined = state_emb
+        ctx_emb = self.context_core.forward(combined)
+        return ctx_emb
+
+    def forward_service(self, ctx_emb: np.ndarray,
+                        request_payload: Optional[np.ndarray] = None) -> np.ndarray:
+        """
+        Service call. Stateless in principle: transforms ctx_emb
+        (optionally combined with request payload).
+        """
+        if request_payload is not None:
+            combined = np.concatenate([ctx_emb, request_payload], axis=0)
+        else:
+            combined = ctx_emb
+        out_emb = self.service_core.forward(combined)
+        return out_emb
+
+    def clone(self) -> "Module":
+        """
+        Structural clone; in a real system this would deep-copy all parameters.
+        Here we approximate with a shallow template plus noise at the NAS layer.
+        """
+        # Note: for IP skeleton purposes, we keep this abstract.
+        cloned = Module(
+            module_id=self.id + "_clone",
+            input_dim=self.input_dim,
+            embedding_dim=self.embedding_dim
+        )
+        # In a real implementation, we would copy weights here.
+        return cloned
+
 
 class MindsEye(Module):
     """
-    Meta-learning and architectural oversight module.
-    - Observes Module/Graph state
-    - Switches optimization regimes
-    - Guides NAS (expansion/contraction)
-    - Maintains global coherence
+    Meta-learning / architecture oversight module.
+
+    Inherits Module structure, but its "service" operates on
+    graph state and architecture descriptions rather than raw data.
     """
-    def __init__(self):
-        super().__init__()
+
+    def __init__(self,
+                 module_id: str = "minds_eye",
+                 input_dim: int = 128,
+                 embedding_dim: int = 256) -> None:
+        super().__init__(module_id, input_dim, embedding_dim)
+
+        # Stores architectural snapshots, complexity curves, etc.
         self.architecture_memory = Memory()
 
-    def update_architecture(self, graph_state):
-        # Evaluate complexity, stability, novelty
-        # Decide on growth or pruning
-        pass
+    def update_architecture(self,
+                            graph_state: Dict[str, Any]) -> None:
+        """
+        Update or propose changes to the architecture based on observed state.
+        Placeholder; real logic would analyze module utilities, complexity,
+        divergence patterns, and route NAS operations.
+        """
+        # Example: store a compressed representation of the graph state.
+        dummy_embedding = np.zeros(self.embedding_dim)
+        self.architecture_memory.store(dummy_embedding)
 
 
-# SECTION 4 — Graph Model Container
-# ---------------------------------
-
-class GraphModel:
-    """
-    Top-level container for all Modules + Mind's Eye.
-    Responsible for:
-    - Orchestrating training
-    - Managing optimization regimes
-    - Tracking global complexity metrics
-    - Routing data through Modules
-    """
-    def __init__(self, modules=None):
-        self.modules = modules if modules is not None else [Module()]
-        self.meta_module = MindsEye()
-
-    def step(self, x):
-        # Core system step: propagate input through modules
-        output = x
-        for m in self.modules:
-            output = m.forward(output)
-        return output
-
-    def optimize(self):
-        # Trigger optimization according to meta-learning
-        pass
-
-
-# End of Software Implementation Notes
-
-## 12. Nascent Hierarchy and Interface Structure
-
-### 12.1 Nascent Hierarchy Levels
-- Only ground‑state modules exist concretely at initialization.
-- Higher abstraction levels exist in a virtual identity state until needed.
-- Logic may safely skip over empty identity levels.
-- Default number of nascent levels = **33**, based on log‑scale coverage for extremely large inputs.
-- Mind’s Eye may later expand or contract levels dynamically.
-
-### 12.2 Embedding-Space
-- Embedding-space defines the dimensionality of feature-space.
-- Default embedding-space size may be:
-  - developer‑specified,
-  - chosen by Mind’s Eye,
-  - or selected via theoretical/empirical rules.
-
-### 12.3 Interface Definition
-- Interfaces connect environment ↔ Graph Model.
-- Interfaces may be input-only, output-only, or mixed.
-
-### 12.4 Input-Module Structure
-- Default: one input-module services the entire input sample.
-- input_module.id supports hierarchical identifiers (0, 0.0, 0.0.1, etc.).
-- Default id for input-module = **0**.
-
-#### Cloning Behavior (NAS Exploration)
-- Input-module may be cloned into 0.0 and 0.1.
-- Downstream modules receive two messages from cloned modules.
-- Overlap component merges these:
-  - default: average outputs (½·out₀₀ + ½·out₀₁).
-
-### 12.5 Overlap Component
-- Manages entanglement created by cloned modules.
-- Ensures downstream compatibility during NAS exploration.
-- Default combination rule: weighted averaging of overlapping outputs.
-
-### 12.6 Output-Module Structure
-- Default: one output-module services full output sample.
-- output_module.id = **1**.
-- Cloning behaves same as input-module.
-- Overlap manages mapping back to output interface.
-
-### 12.7 Input→Output Path
-- input-module processes environment input.
-- Passes message to output-module through attention-based routing.
-- Output-module produces approximation for output-interface.
-
-### 12.8 NAS Exploration and Complexity Dynamics
-- Cloning temporarily doubles modules; complexity increases.
-- Reduction phase must eliminate redundant modules while preserving inputs.
-- Overlap may remain indefinitely if advantageous.
-- No input elements may be dropped; each must map to at least one module.
-- Complexity-gradient behaves like a relativistic barrier preventing runaway expansion.
-
-These additions formalize the Graph Model's nascent hierarchy, interface design, cloning behavior, Overlap component, and NAS-driven expansion/reduction dynamics.
-
-# SECTION 5 — Interfaces, Hierarchy, and NAS Dynamics
-# ---------------------------------------------------
-
-# 5.1 Nascent Hierarchy Levels
-# ----------------------------
-# - Ground-state modules exist physically.
-# - Higher abstraction levels exist in virtual identity state.
-# - Logic-flow may skip identity levels with negligible cost.
-# - Default: 33 abstraction levels (log-scale coverage for extremely large inputs).
-# - Mind's Eye may dynamically add/remove levels.
+# ============================================================
+# SECTION 7 — Hierarchy, Interfaces, and I/O Modules
+# ============================================================
 
 class HierarchyManager:
     """
-    Tracks nascent abstraction levels and controls when a level transitions
-    from virtual identity to instantiated Modules.
+    Tracks nascent abstraction levels.
+
+    - num_levels: default 33
+    - level_states: 'identity' or 'active'
     """
-    def __init__(self, num_levels=33):
+
+    def __init__(self,
+                 num_levels: int = 33) -> None:
         self.num_levels = num_levels
-        self.level_states = ["identity" for _ in range(num_levels)]
+        self.level_states: List[str] = ["identity"] * num_levels
 
-    def activate_level(self, level_idx):
-        # Convert identity state to instantiated state
-        self.level_states[level_idx] = "active"
+    def activate_level(self, level_idx: int) -> None:
+        if 0 <= level_idx < self.num_levels:
+            self.level_states[level_idx] = "active"
 
-
-# 5.2 Interfaces
-# --------------
-# Interfaces connect environment <-> Graph Model.
-# Interfaces can be dedicated to:
-# - input
-# - output
-# - or both
 
 class Interface:
     """
-    Wrapper for environment I/O.
-    Handles external-to-internal mapping into Module embeddings.
+    Environment <-> GraphModel adapter.
+
+    - mode: 'input', 'output', or 'dual'
+    - encode: raw -> embedding
+    - decode: embedding -> raw
     """
-    def __init__(self, mode="input"):
-        self.mode = mode  # "input", "output", or "dual"
 
-    def encode(self, x):
-        # Environment -> Core embedding
-        pass
+    def __init__(self,
+                 mode: str = "input",
+                 embedding_dim: int = 256) -> None:
+        self.mode = mode
+        self.embedding_dim = embedding_dim
 
-    def decode(self, y):
-        # Core embedding -> environment output
-        pass
+    def encode(self, x: np.ndarray) -> np.ndarray:
+        """
+        Placeholder encoder. In practice, could be a learned module.
+        """
+        if x.size >= self.embedding_dim:
+            return x[:self.embedding_dim]
+        result = np.zeros(self.embedding_dim)
+        result[:x.size] = x
+        return result
 
-
-# 5.3 Input Module
-# ----------------
-# - Default ID = 0
-# - May be cloned (0 -> 0.0, 0.1)
-# - Downstream modules see two messages from cloned modules
-# - Overlap component merges messages
-
-class Overlap:
-    """
-    Manages combination of messages from cloned modules.
-    Default behavior:
-        merged = 0.5 * message_a + 0.5 * message_b
-    """
-    def __init__(self):
-        pass
-
-    def merge(self, *messages):
-        if not messages:
-            return None
-        w = 1.0 / len(messages)
-        total = None
-        for m in messages:
-            total = m if total is None else total + m
-        return w * total
+    def decode(self, y: np.ndarray) -> np.ndarray:
+        """
+        Placeholder decoder; returns y as-is for now.
+        """
+        return y
 
 
-class InputModule(Module):
-    """
-    Specialized Module that interfaces with external input.
-    Supports cloning during NAS exploration.
-    """
-    def __init__(self, module_id=0):
-        super().__init__()
-        self.id = str(module_id)
-        self.overlap = Overlap()
-
-    def clone(self):
-        # Create cloned modules 0.0, 0.1, etc.
-        a = InputModule(self.id + ".0")
-        b = InputModule(self.id + ".1")
-        return a, b
-
-
-# 5.4 Output Module
-# -----------------
-# Behavior mirrors InputModule
-
-class OutputModule(Module):
-    def __init__(self, module_id=1):
-        super().__init__()
-        self.id = str(module_id)
-        self.overlap = Overlap()
-
-    def clone(self):
-        a = OutputModule(self.id + ".0")
-        b = OutputModule(self.id + ".1")
-        return a, b
-
-
-# 5.5 Input -> Output Flow
-# ------------------------
-# - InputModule encodes and processes input
-# - Messages flow through hierarchical Module layers
-# - OutputModule processes and decodes final result
-
-class GraphModel:  # extending previous definition
-    def __init__(self, input_interface=None, output_interface=None):
-        self.input_interface = input_interface or Interface("input")
-        self.output_interface = output_interface or Interface("output")
-
-        # Default modules if none provided
-        self.input_module = InputModule(0)
-        self.output_module = OutputModule(1)
-
-        # Inter-module routing can evolve
-        self.modules = [self.input_module, self.output_module]
-        self.meta_module = MindsEye()
-        self.hierarchy = HierarchyManager()
-
-    def forward(self, x):
-        encoded = self.input_interface.encode(x)
-        processed = self.input_module.forward(encoded)
-        output_embedding = self.output_module.forward(processed)
-        return self.output_interface.decode(output_embedding)
-
-
-# 5.6 NAS Exploration Dynamics
-# ----------------------------
-# - Cloning doubles module count temporarily
-# - Overlap halves outgoing activations to preserve downstream invariants
-# - Reduction phase prunes redundant modules
-# - Reduction must map every input element to ≥ 1 module
-# - Overlap may persist indefinitely if beneficial
-# - Complexity gradient prevents runaway expansion
+# ============================================================
+# SECTION 8 — Symmetry Breaking and NAS Controller
+# ============================================================
 
 class SymmetryBreaker:
     """
     Implements controlled symmetry-breaking during NAS cloning.
+
     Applies small perturbations to cloned Modules to ensure they
     diverge under gradient descent rather than remaining locked
     in identical parameter subspaces.
     """
 
-    def __init__(self, noise_scale=1e-5):
+    def __init__(self,
+                 noise_scale: float = 1e-5) -> None:
         self.noise_scale = noise_scale
 
-    def perturb_tensor(self, tensor):
+    def perturb_tensor(self, tensor: Optional[np.ndarray]) -> Optional[np.ndarray]:
         if tensor is None:
             return None
-        return tensor + self.noise_scale * np.random.randn(*tensor.shape)
+        noise = self.noise_scale * np.random.randn(*tensor.shape)
+        return tensor + noise
 
-    def perturb_core(self, core):
-        if hasattr(core.base_features, "spline_params") and core.base_features.spline_params is not None:
-            core.base_features.spline_params = self.perturb_tensor(core.base_features.spline_params)
+    def perturb_core(self, core: Core) -> None:
+        if core.base_feature.spline_params is not None:
+            core.base_feature.spline_params = self.perturb_tensor(
+                core.base_feature.spline_params
+            )
 
-        if hasattr(core.base_features, "learned_permutation") and core.base_features.learned_permutation is not None:
-            core.base_features.learned_permutation = self.perturb_tensor(core.base_features.learned_permutation)
+        if core.base_feature.learned_permutation is not None:
+            core.base_feature.learned_permutation = self.perturb_tensor(
+                core.base_feature.learned_permutation
+            )
 
         for layer in core.parallel_layers:
-            if hasattr(layer, "Q") and layer.Q is not None:
+            if layer.Q is not None:
                 layer.Q = self.perturb_tensor(layer.Q)
-            if hasattr(layer, "K") and layer.K is not None:
+            if layer.K is not None:
                 layer.K = self.perturb_tensor(layer.K)
-            if hasattr(layer, "V") and layer.V is not None:
+            if layer.V is not None:
                 layer.V = self.perturb_tensor(layer.V)
 
-    def apply(self, module):
-        for attribute in ["state_core", "context_core", "service_core"]:
-            core = getattr(module, attribute, None)
+    def apply(self, module: Module) -> Module:
+        """
+        Apply symmetry-breaking perturbations to all Cores inside a Module.
+        """
+        for core_attr in ["state_core", "context_core", "service_core"]:
+            core = getattr(module, core_attr, None)
             if core is not None:
                 self.perturb_core(core)
         return module
@@ -444,36 +555,135 @@ class SymmetryBreaker:
 
 class NASController:
     """
-    Controls exploration and reduction during NAS.
-    Extended with:
-    - symmetry-breaking perturbation injection,
-    - divergence-aware clone evaluation,
-    - complexity-gradient pruning logic.
+    Controls exploration (cloning) and reduction (pruning) of Modules.
+
+    Uses:
+    - SymmetryBreaker for clone divergence,
+    - complexity penalties for pruning,
+    - utility estimates for selection.
     """
 
-    def __init__(self, symmetry_breaker=None):
+    def __init__(self,
+                 symmetry_breaker: Optional[SymmetryBreaker] = None) -> None:
         self.symmetry_breaker = symmetry_breaker or SymmetryBreaker()
 
-    def explore(self, module):
+    def explore(self, module: Module) -> List[Module]:
+        """
+        Clone a module into two variants and apply symmetry breaking.
+
+        Returns:
+            [clone_a, clone_b]
+        """
         clone_a = module.clone()
         clone_b = module.clone()
 
-        # Introduce tiny symmetry-breaking perturbations
         clone_a = self.symmetry_breaker.apply(clone_a)
         clone_b = self.symmetry_breaker.apply(clone_b)
 
-        return clone_a, clone_b
+        # Split the output scale to preserve overall magnitude
+        scale = module.state_core.output_scale
+        clone_a.state_core.output_scale = 0.5 * scale
+        clone_b.state_core.output_scale = 0.5 * scale
 
-    def evaluate_divergence(self, clone_a, clone_b):
-        return None  # placeholder for future metrics
+        return [clone_a, clone_b]
 
-    def reduce(self, modules, complexity_penalty_fn):
-        scored = []
+    def reduce(self,
+               modules: List[Module],
+               complexity_penalty_fn: Any) -> List[Module]:
+        """
+        Prune redundant modules based on:
+        - utility (module.utility)
+        - complexity penalties.
+
+        Returns a selected subset of modules.
+        """
+        scored: List[tuple[float, Module]] = []
+
         for m in modules:
-            score = getattr(m, "utility", 0.0) - complexity_penalty_fn(m)
+            penalty = complexity_penalty_fn(m)
+            score = m.utility - penalty
             scored.append((score, m))
 
-        scored.sort(key=lambda x: x[0], reverse=True)
-        surviving_modules = [x[1] for x in scored[:len(modules)//2 or 1]]
+        scored.sort(key=lambda pair: pair[0], reverse=True)
 
-        return surviving_modules
+        # Simple heuristic: keep top half (at least one).
+        num_keep = max(len(scored) // 2, 1)
+        survivors = [pair[1] for pair in scored[:num_keep]]
+        return survivors
+
+
+# ============================================================
+# SECTION 9 — GraphModel Container
+# ============================================================
+
+class GraphModel:
+    """
+    Top-level container for:
+    - Modules
+    - MindsEye
+    - Hierarchy
+    - Interfaces
+    - NAS controller
+
+    Orchestrates training and inference.
+    """
+
+    def __init__(self,
+                 input_dim: int,
+                 embedding_dim: int,
+                 modules: Optional[List[Module]] = None) -> None:
+        self.input_interface = Interface(mode="input", embedding_dim=embedding_dim)
+        self.output_interface = Interface(mode="output", embedding_dim=embedding_dim)
+
+        # Default simple input/output modules if none provided
+        if modules is None or not modules:
+            input_module = Module("input_module", input_dim, embedding_dim)
+            output_module = Module("output_module", embedding_dim, embedding_dim)
+            self.modules: List[Module] = [input_module, output_module]
+        else:
+            self.modules = modules
+
+        self.minds_eye = MindsEye()
+        self.hierarchy = HierarchyManager()
+        self.logistics = Logistics()
+        self.nas = NASController()
+
+    def forward(self, x: np.ndarray) -> np.ndarray:
+        """
+        Simple forward pass:
+        - encode input,
+        - send through input_module,
+        - route through any intermediate modules (placeholder),
+        - send through output_module,
+        - decode to environment space.
+        """
+        encoded = self.input_interface.encode(x)
+
+        # For now, assume [0] is input_module and [-1] is output_module.
+        input_module = self.modules[0]
+        output_module = self.modules[-1]
+
+        state_emb = input_module.forward_state(encoded)
+        ctx_emb = input_module.forward_context(state_emb)
+        mid_emb = input_module.forward_service(ctx_emb)
+
+        # Placeholder for intermediate routing
+        out_state = output_module.forward_state(mid_emb)
+        out_ctx = output_module.forward_context(out_state)
+        out_emb = output_module.forward_service(out_ctx)
+
+        decoded = self.output_interface.decode(out_emb)
+        return decoded
+
+    def step_training(self, batch: np.ndarray) -> None:
+        """
+        Placeholder for one training step.
+        Would:
+        - run forward,
+        - compute loss,
+        - backprop,
+        - possibly call NAS controller,
+        - possibly update MindsEye.
+        """
+        _ = self.forward(batch)  # ignore result in this skeleton
+        # TODO: implement loss computation, gradient updates, NAS logic, etc.
