@@ -1,349 +1,206 @@
-# Graph Model Intellectual Property (IP) Description
-
-This document captures the conceptual, architectural, and theoretical foundations of the Graph Model Oracle, defining the novel components, structural primitives, and meta-learning dynamics protected under the OTU Green License.
-
-The Graph Model is a general-purpose, modular, hierarchical learning system built from spline-standardized features, attention-based routing primitives, self-modifying architecture, and multi-regime optimization dynamics. It is designed for sparse, flexible, expandable intelligence.
+# Graph Model Oracle — IP Description
 
 ---
 
-# 1. Purpose and Scope
+# **1. Overview**
 
-This description asserts IP protection over:
+Graph Model Oracle is a **self-modifying, modular, agent-like computational substrate** built on four universal principles:
 
-- the monotone-spline feature standardization process,
-- the Core/Module/MindsEye structural hierarchy,
-- attention-as-atomic-primitive routing embedded into modular computation,
-- the 33-level nascent abstraction hierarchy,
-- dynamic architecture search (NAS) with cloning, merging, and complexity gradients,
-- overlap management and symmetry-breaking mechanisms,
-- internal memory compression/expansion logic,
-- module-to-module logistics (request/response),
-- learnable permutation structures per contact,
-- meta-learning strategies for bootstrapping MindsEye,
-- and the general organizational logic of the Graph Model Oracle.
+1. **Monotone-Spline Canonicalization** — all feature vectors are transformed into a universal sensory manifold.
+2. **Core-Local Geometric Lenses** — each module defines its own internal geometry through *Permutation Families*.
+3. **Atomic QKV Attention** — every Core uses attention as the fundamental reasoning mechanism.
+4. **NAS-Driven Evolution** — modules clone, diverge, merge, and collapse through evolutionary pressure, not static design.
 
-General ML concepts are not claimed—only the novel structural organization and interplay.
+The result is a system that resembles an **ecology of differentiable minds**, not a neural network.
 
 ---
 
-# 2. High-Level Summary
+# **2. Modules and Cores**
 
-The Graph Model is a modular learning substrate composed of interacting Modules, each containing Cores responsible for state, context, service, and contact behaviors. It uses:
+A **Module** is an agent-like computational unit composed of three Cores:
 
-- spline-standardized features,
-- atomic Q/K/V attention within each Core,
-- multi-level abstraction hierarchy,
-- dynamic module cloning and specialization,
-- multi-regime optimization,
-- and meta-learning governing self-modification.
+- **State Core** — long-term memory and identity.
+- **Context Core** — short-term situational processing.
+- **Service Core** — transformation + reasoning usable by other modules.
 
-The system aims to unify:
+Each Core contains:
 
-- sparse modularity,
-- feature universality,
-- evolutionary architectural dynamics,
-- differentiable learning,
-- and agency-like request/response structures.
+- a **MonotoneSplineEncoder**: sorts inputs → encodes via smooth monotone spline;
+- a **PermutationFamilyManager**: a set of continuous index-space maps that generate learned permutations for any input length;
+- a **QKVLayer**: attention over one or more permuted views.
+
+A Module is never destroyed; it may collapse back into an **Identity Module** (minimal state) when utility stagnates.
 
 ---
 
-# 3. Core Architectural Components
+# **3. Universal Sensory Manifold**
 
-## 3.1 Core
+All raw feature vectors undergo:
 
-A Core is the atomic computational operator. It includes:
+1. **Sorting** (monotonic ordering)
+2. **Spline Encoding** (smooth functional representation)
 
-- **Monotone-spline feature extraction** with sorted-input canonicalization.
-- **Learned-permutation projection**, enabling mapping between feature-space orders.
-- **Parallel Q/K/V feature layers** for attention-based routing and transformation.
-- **Contextual mixing** via softmax(QK)·V.
-- **Expandable parallel and downstream feature layers** through NAS.
+This produces a **canonical representation** shared across all modules. It establishes a universal, predictable geometry that prevents fragmentation of meaning.
 
-A Core is an embedded expert capable of both computation and communication.
+This is the system’s version of a “sensory cortex.”
 
 ---
 
-## 3.2 Module
+# **4. Local Geometric Lenses: Permutation Families**
 
-A Module is a container for multiple Cores:
+A *Permutation Family* is a continuous map:
 
-- **State Core**  
-  Long-term, slow-changing representation used to generate outputs.
+```
+ t ∈ [0,1]  →  f(t)  →  scores
+ argsort(scores) → discrete permutation
+```
 
-- **Context Core**  
-  Short-lived state modified by ongoing interactions. A fast-timescale modulator.
+For any input length `n`, the module instantiates a permutation by:
 
-- **Service Core**  
-  A callable function providing transformations for other Modules on request.
+- sampling `t = linspace(0,1,n)`,
+- applying its learned map `f(t)`,
+- sorting the results.
 
-- **Contact Core**  
-  Decides whether to respond immediately, consult experts, or route the request.
+This yields a **dimension-agnostic geometric lens**. Modules may maintain multiple families (multi-view geometry).
 
-- **Memory subsystem**  
-  Recent (uncompressed) and older (compressed) memories in embedded space.
-
-- **Logistics subsystem**  
-  Handles nested requests, message passing, identity, and scheduling.
-
-- **Complexity subsystem**  
-  Tracks space/time tokens and drives reduction or expansion under pressure.
-
-Modules behave as adaptive, semi-autonomous computational agents.
+Core-level geometry stays local, coherent, and expert-specific.
 
 ---
 
-## 3.3 MindsEye (Meta-Learner)
+# **5. Attention as Atomic Computation**
 
-MindsEye monitors the entire Graph:
+Within each Core:
 
-- adjusts optimization regimes,
-- triggers architectural exploration,
-- allocates complexity tokens,
-- evaluates module utility,
-- manages cloning and merging,
-- routes learning signals,
-- and coordinates global structural updates.
+- **Q** comes from the requester.
+- **K/V** come from the receiver.
+- QKV operates over **permuted canonical spline embeddings**.
 
-It is not a controller; it is an evolving meta-optimizer embedded within the system.
+Attention governs:
 
----
-
-# 4. Monotone-Spline Feature Standardization
-
-A key innovation:
-
-1. Input or internal feature vectors are **sorted** (descending or ascending).
-2. The sorted vector is treated as a **monotone curve**.
-3. The curve is encoded via **monotone splines**.
-4. A learned-permutation matrix maps between raw feature ordering and canonicalized forms.
-
-Benefits:
-
-- universal geometric representation,
-- feature comparability across Modules,
-- reduced entanglement,
-- stable dynamics for Q/K/V mixing,
-- scalable expandability.
-
-This canonicalization is central to Graph Model’s universality.
-
----
-
-# 5. Attention as an Atomic Routing Primitive
-
-Attention is not a layer—it is a primitive inside every Core:
-
-- **Q** = what a Core seeks (query).
-- **K** = how a Core exposes its structure (key).
-- **V** = what a Core communicates (value).
-
-Softmax(QK) determines routing strengths; V mixes messages.
-
-Attention serves as:
-
+- reasoning,
 - routing,
-- contextual integration,
-- specialization scaffold,
-- message passing,
-- and internal transformation.
+- selection of experts,
+- transformation of representations.
 
-NAS can expand Cores, but attention remains stable as the central operator.
+It is the basic “thought operator” of the system.
 
 ---
 
-# 6. Multi-Regime Optimization
+# **6. Contact and Logistics**
 
-The system switches training regimes:
+`Contact` is intentionally simple:
 
-- **Large mini-batches** for early stability,
-- **Small mini-batches** for structural differentiation,
-- **Online SGD** for fine causal learning,
-- **Batch fallback** when gradients destabilize.
+- address,
+- request type,
+- logistics metadata.
 
-MindsEye monitors graph-wide signals (gradient variance, module drift, complexity usage) to choose regimes.
+It performs *routing only*.
 
----
+All geometry, interpretation, and representation live inside the receiver’s Core.
 
-# 7. Nascent 33-Level Hierarchy
-
-The system initializes with a set of **nascent abstract levels**:
-
-- Only ground-state Modules (input/output handlers) exist initially.
-- Higher levels are **identity-mapped virtual Modules**.
-- They cost almost nothing until activated.
-- NAS can instantiate real Modules at any level.
-- 33 levels provide log₂-scale coverage for extremely large input structures without overcommitting architecture.
-
-This is a flexible namespace for structural growth, not a rigid stack.
+This keeps the system from exploding in complexity and preserves local expertise.
 
 ---
 
-# 8. Interface Structure
+# **7. NAS Evolution: Cloning, Divergence, and Merging**
 
-## 8.1 Input Interface → Input Module  
-The input-module receives raw samples, applies spline-standardized feature extraction, and begins upward routing.
+Modules evolve similarly to biological entities:
 
-## 8.2 Output Module → Output Interface  
-The output-module synthesizes final embeddings and decodes them into environment outputs.
+- **Cloning** creates two nearly-identical offspring.
+- **Symmetry-Breaking** (tiny perturbations + independent permutation families) induces divergence.
+- **Merging** uses learnable scalars to combine redundant modules.
+- **Collapse to Identity** happens when a module’s utility decays.
 
-## 8.3 Input→Output Path  
-Default execution:
+Evolution is continuous and differentiable where possible, discrete where necessary.
 
-input interface
-→ input-module
-→ hierarchical module graph
-→ output-module
-→ output interface
-
+This produces architectural phylogeny over training.
 
 ---
 
-# 9. Overlap and Cloning (NAS Exploration)
+# **8. Complexity Gradient**
 
-NAS may clone a Module when its workload or representational pressure grows too high.
+Complexity acts like a **relativistic penalty**:
 
-### 9.1 Cloning  
-`M → M0, M1`
+- high complexity increases computational cost,
+- large expansions require justification,
+- MindsEye regulates complexity pressure.
 
-### 9.2 Overlap (before replacement)  
-Original approach: a wrapper that averages outputs:
-
-\[
-\frac{1}{2} M0 + \frac{1}{2} M1
-\]
-
-Preserves downstream invariants.
-
-### 9.3 Improved Approach: Learnable Scalars  
-Each Module output has a learnable scalar α:
-
-- Before cloning: α = 1
-- After cloning:  
-  - α₀ = r  
-  - α₁ = 1 − r  
-  with r = 0.5 for identity-preservation.
-
-These scalars drift over training, breaking symmetry smoothly without bottlenecking.
-
-### 9.4 Routing Upward to Abstract Module  
-When needed:
-
-- wrap clones,
-- route merged output upward,
-- allow abstract-level Modules to mediate divergence.
-
-This prevents suppression of specialization.
+This keeps the ecology stable and prevents unchecked expansion.
 
 ---
 
-# 10. Memory System
+# **9. Memory Subsystem**
 
-Features:
+Each module maintains:
 
-- uncompressed recent memory,
-- compressed older memory with exponential compression curvature,
-- embedded traces for internal error checking,
-- learnable compression/decompression Cores,
-- complexity-driven space limits.
+- **uncompressed memory** for recent interactions,
+- **compressed memory** for long-term abstractions.
 
-Memory acts as a continuous, lossy, self-structuring store.
+Compression curvature is *module-specific* and meta-learned. Loss of semantic interpretability at long time scales is expected.
 
----
-
-# 11. Complexity Gradient
-
-A regulatory mechanism analogous to special relativity:
-
-- As module complexity (space/time) approaches its limit, the cost of extra expansion → ∞.
-- Encourages pruning, compression, merging.
-- Controls NAS growth.
-- Ensures efficient, sparse structural development.
-
-This is an architectural energy model guiding structural evolution.
+Memory is sedimentation, not storage.
 
 ---
 
-# 12. Contact Structure and Multi-Permutation Support
+# **10. MindsEye Meta-Learner**
 
-Each Module maintains a **Contact** mapping:
+MindsEye oversees:
 
-contact[target_module_id] → { permutation structures }
+- module utility evaluation,
+- structural evolution,
+- complexity flow,
+- pruning/consolidation,
+- routing overrides when necessary.
 
+MindsEye learns **structural principles**, not specific architectures.
 
-Why?
-
-- Different Modules require feature detectors in different canonical orders.
-- A single learned permutation is insufficient.
-- Modules need *module-specific permutations* for stable interaction.
-- Contact-specific permutation sets allow:
-
-  - contextual feature alignment,
-  - multiple valid permutations per feature,
-  - expandable communication channels,
-  - robust multi-agent modularity.
-
-This preserves spline standardization while enabling diverse remappings.
+It is the system’s thermodynamic regulator.
 
 ---
 
-# 13. Symmetry Breaking in Cloned Modules
+# **11. Virtual Hierarchy (33 Levels)**
 
-### 13.1 Overwork-Driven Divergence  
-Cloning reduces workload per Module, altering gradient landscapes.  
-Even without noise, clones diverge due to different optimization trajectories.
+A soft abstraction manifold:
 
-### 13.2 Perturbation-Accelerated Divergence  
-Small perturbations—spline jitter, permutation noise, unshared dropout—ensure reliable divergence.
+- potential levels, not enforced layers;
+- experts drift upward or downward based on shared semantics;
+- modules occupy attractor basins defined by their function.
 
-### 13.3 When Clones Do Not Diverge  
-If no advantage emerges, complexity-gradient penalizes clone maintenance → prune redundant clone.
-
-### 13.4 Summary  
-The system supports safe, controlled bifurcation:
-
-1. Clone  
-2. Learnable scalar split  
-3. Symmetry-breaking perturbation  
-4. Divergence under pressure  
-5. Prune or specialize
-
-This forms the system’s evolutionary architecture.
+Hierarchy emerges; it is never imposed.
 
 ---
 
-# 14. Bootstrapping MindsEye
+# **12. System Philosophy**
 
-To avoid erratic early meta-learning, MindsEye can be bootstrapped with supervised mappings:
+Graph Model Oracle is a **cognitive physics**, not a model:
 
-- For tasks with known optimal architectures:
-  - convert optimal architectures to GraphModel form,
-  - perturb them,
-  - train MindsEye to map perturbed → optimal.
+- monotone splines establish a shared sensory metric,
+- permutation families give each module its own geometry,
+- attention acts as the local reasoning dynamic,
+- evolution forms structure,
+- complexity gradients shape the ecosystem,
+- MindsEye regulates global stability.
 
-This teaches:
-
-- structural correction,
-- optimization regime selection,
-- architectural priors,
-- proper routing patterns.
-
-This replaces blind meta-learning with grounded, stable initialization.
+It is an **ecology of differentiable agents** that discover invariants, not a static network trained to map inputs to outputs.
 
 ---
 
-# 15. IP Coverage Summary
+# **13. Short Restoration Prompt**
 
-Protected elements include:
+A complete attractor-state restore:
 
-- spline-standardized features,
-- multi-permutation Contact logic,
-- attention-as-atomic-Core,
-- multi-regime optimization logic,
-- hierarchical virtual identity levels,
-- learnable-scalar Overlap replacement,
-- NAS cloning + divergence + pruning,
-- memory compression curvature,
-- MindsEye meta-optimization mechanics,
-- and the complete logistical request/response system.
+```
+I’m building the Graph Model Oracle: a modular, self-modifying, agent-like system.
+All modules use monotone-spline canonicalization, and each module maintains its own
+Permutation Families (continuous index-space maps that generate dimension-agnostic
+permutations). Cores interpret canonical splines through these learned geometries.
+Downstream QKV attention operates over their permuted views. Contact routes only.
+Modules evolve via NAS (cloning, divergence, merging, identity collapse). MindsEye
+regulates structure, complexity gradients, and ecosystem stability. This system is a
+cognitive ecology, not a transformer. Maintain this worldview.
+```
 
-This document unifies all architectural components under a single protected conceptual framework.
+---
+
+# **End of Updated Description**
+
