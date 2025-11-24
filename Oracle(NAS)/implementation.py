@@ -271,21 +271,18 @@ class Core:
         self.output_scale: float = 1.0
 
     def apply_permutation_family(self, embedding: np.ndarray, family_index: int = 0) -> np.ndarray:
-        """
-        Apply a selected permutation family to the embedding.
-        """
-        if family_index < 0 or family_index >= len(self.permutation_families):
-            return embedding
-
-        family: PermutationFamily = self.permutation_families[family_index]
-        permutation: np.ndarray = family.generate(len(embedding))
-
-        permuted_embedding: np.ndarray = np.zeros_like(embedding)
-        for new_index in range(len(embedding)):
-            old_index: int = int(permutation[new_index])
-            permuted_embedding[new_index] = embedding[old_index]
-
-        return permuted_embedding
+            """
+            Apply a selected permutation family to the embedding.
+            """
+            if family_index < 0 or family_index >= len(self.permutation_families):
+                return embedding
+    
+            family: SpectralPermutationFamily = self.permutation_families[family_index]
+            
+            # Update: Use the new .forward() method which handles scores -> argsort -> permute
+            permuted_embedding = family.forward(embedding)
+    
+            return permuted_embedding
 
     def forward(self, x: np.ndarray) -> np.ndarray:
         """
@@ -601,16 +598,18 @@ class SymmetryBreaker:
         return tensor + noise
 
     def perturb_core(self, core: Core) -> None:
-        if core.base_feature.spline_params is not None:
-            core.base_feature.spline_params = self.perturb_tensor(core.base_feature.spline_params)
-
-        for permutation_family in core.permutation_families:
-            permutation_family.coefficients = self.perturb_tensor(permutation_family.coefficients)
-
-        for layer in core.parallel_layers:
-            layer.matrix_q = self.perturb_tensor(layer.matrix_q)
-            layer.matrix_k = self.perturb_tensor(layer.matrix_k)
-            layer.matrix_v = self.perturb_tensor(layer.matrix_v)
+            if core.base_feature.spline_params is not None:
+                core.base_feature.spline_params = self.perturb_tensor(core.base_feature.spline_params)
+    
+            for permutation_family in core.permutation_families:
+                # Update: Perturb both fixed and relative spectral coefficients
+                permutation_family.fixed_coeffs = self.perturb_tensor(permutation_family.fixed_coeffs)
+                permutation_family.relative_coeffs = self.perturb_tensor(permutation_family.relative_coeffs)
+    
+            for layer in core.parallel_layers:
+                layer.matrix_q = self.perturb_tensor(layer.matrix_q)
+                layer.matrix_k = self.perturb_tensor(layer.matrix_k)
+                layer.matrix_v = self.perturb_tensor(layer.matrix_v)
 
     def apply(self, module: Module) -> Module:
         """
