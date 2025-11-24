@@ -91,73 +91,100 @@ class SplineFeature:
 
 
 # ============================================================
-# SECTION 2b — Permutation Families (Continuous Index Geometry)
+# SECTION 2b — Spectral Permutation Families (Nyquist Basis)
 # ============================================================
 
-class PermutationFamily:
+class SpectralPermutationFamily:
     """
-    Continuous parameterization of a family of permutations.
-
-    Concept:
-        A learnable function f : [0,1] → ℝ whose sampled outputs
-        determine a permutation for any vector length n:
-
-            t_i = i / (n - 1)    for n > 1
-            s_i = f(t_i)
-            perm = argsort(s_i)
-
-        This preserves:
-            - universality across variable input lengths,
-            - smooth gradient-based learning,
-            - local expert-specific geometry,
-            - invariance to raw input ordering.
+    Continuous parameterization of permutations using a Hybrid Fourier Basis.
+    
+    Implements the "Nyquist Basis Proposal":
+    1. Fixed Frequencies: sin(k * pi * t) -> Global geometry (reverse, rotate).
+    2. Relative Frequencies: sin(k * N * pi * t) -> Microstructure (interleave).
+    
+    Includes 'Nyquist Guardrails' to prevent aliasing on small vectors.
     """
 
-    def __init__(self, num_basis: int = 8) -> None:
-        self.num_basis: int = num_basis
-        self.coefficients: np.ndarray = np.random.randn(num_basis) * 0.01
+    def __init__(self, num_fixed: int = 8, num_relative: int = 4) -> None:
+        self.num_fixed = num_fixed
+        self.num_relative = num_relative
+        
+        # Learnable coefficients for Fixed and Relative bands
+        # Initialized near zero to start close to Identity/Monotone
+        self.fixed_coeffs = np.random.randn(num_fixed) * 0.001
+        self.relative_coeffs = np.random.randn(num_relative) * 0.001
+        
+        # Bias term implies "Identity" sort (t) as the default starting state
+        self.bias_strength = 1.0
 
-    def _basis(self, t: float) -> np.ndarray:
+    def _get_basis_val(self, t: float, n: int) -> float:
         """
-        Basis functions over t in [0, 1].
-        For now: polynomial basis [1, t, t^2, ..., t^(num_basis-1)].
+        Compute f(t) using the Hybrid Basis with Nyquist constraints.
         """
-        values: List[float] = []
-        current_power: float = 1.0
-        for basis_index in range(self.num_basis):
-            values.append(current_power)
-            current_power = current_power * t
-        return np.array(values, dtype=float)
+        val = 0.0
+        
+        # 1. Base Identity Trend (The "Carrier Wave")
+        val += t * self.bias_strength
 
-    def score(self, t: float) -> float:
-        """
-        Compute f(t) = coefficients · basis(t).
-        """
-        basis_values: np.ndarray = self._basis(t)
-        score_value: float = float(np.dot(self.coefficients, basis_values))
-        return score_value
+        # 2. Fixed Frequencies (Global Geometry)
+        # Limit: Nyquist frequency implies we shouldn't wiggle faster than N/2
+        for k in range(1, self.num_fixed + 1):
+            freq = k * 0.5 # Normalized frequency approx
+            if freq > (n / 2.0): 
+                break # Nyquist Guardrail: Stop if freq exceeds resolution
+                
+            # sin(k * pi * t)
+            wave = np.sin(k * np.pi * t)
+            val += self.fixed_coeffs[k-1] * wave
 
-    def generate(self, length: int) -> np.ndarray:
+        # 3. Relative Frequencies (Microstructure)
+        # These inherently scale with N, so they always "fit", 
+        # but we must ensure K isn't too large for the sampling stability.
+        for k in range(1, self.num_relative + 1):
+            # sin(k * N * pi * t)
+            # This creates N-relative oscillations (e.g. odds/evens)
+            wave = np.sin(k * n * np.pi * t)
+            val += self.relative_coeffs[k-1] * wave
+            
+        return val
+
+    def get_scores(self, length: int) -> np.ndarray:
         """
-        Generate a discrete permutation for a vector of size `length`.
-        Returns an array of indices.
+        Generate the continuous score curve for vector size `length`.
         """
+        scores = np.zeros(length, dtype=float)
+        
         if length <= 1:
-            return np.arange(length)
+            return scores
+            
+        for i in range(length):
+            t = i / (length - 1)
+            scores[i] = self._get_basis_val(t, length)
+            
+        return scores
 
-        ts: np.ndarray = np.zeros(length, dtype=float)
-        if length == 1:
-            ts[0] = 0.0
-        else:
-            for index in range(length):
-                ts[index] = float(index) / float(length - 1)
-
-        scores: np.ndarray = np.zeros(length, dtype=float)
-        for index in range(length):
-            scores[index] = self.score(float(ts[index]))
-
-        permutation: np.ndarray = np.argsort(scores)
-        return permutation
+    def forward(self, x: np.ndarray) -> np.ndarray:
+        """
+        Apply permutation to input vector x using Differentiable SoftSort.
+        
+        Note: In a real training loop, 'np.argsort' breaks gradients.
+        This would be replaced by a SoftSort / Gumbel-Sinkhorn relaxation 
+        using the 'scores' generated above as logits.
+        """
+        n = len(x)
+        scores = self.get_scores(n)
+        
+        # --- DIFFERENTIABILITY NOTE ---
+        # For inference/scaffold: Hard argsort is fine.
+        # For training: replace with soft_sort(scores, x)
+        perm_indices = np.argsort(scores)
+        
+        # Apply permutation
+        permuted_x = np.zeros_like(x)
+        for new_i, old_i in enumerate(perm_indices):
+            permuted_x[new_i] = x[old_i]
+            
+        return permuted_x
 
 
 # ============================================================
@@ -224,7 +251,7 @@ class Core:
     Smallest compute agent in the Graph Model.
 
     - Starts with a single SplineFeature layer.
-    - Owns one or more PermutationFamilies.
+    - Owns one or more SpectralPermutationFamilies.
     - Applies permutation families to reinterpret canonical spline embeddings.
     - May grow parallel Q/K/V layers.
     - May grow downstream transformation layers.
@@ -236,7 +263,7 @@ class Core:
 
         self.base_feature: SplineFeature = SplineFeature(embedding_dim=embedding_dim)
 
-        self.permutation_families: List[PermutationFamily] = [PermutationFamily()]
+        self.permutation_families: List[SpectralPermutationFamily] = [SpectralPermutationFamily()]
 
         self.parallel_layers: List[QKVLayer] = []
         self.downstream_layers: List[Any] = []
