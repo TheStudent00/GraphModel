@@ -318,6 +318,14 @@ When needed:
 
 This prevents suppression of specialization.
 
+### 9.5 Evolutionary Backtracking (Safety Mechanism)
+
+MindsEye maintains a **phylogenetic tree** of architectural states. If a newly explored branch (after cloning or mutation) fails to surpass the parent's utility-to-complexity ratio within a set window, the system triggers a **Revert**.
+
+* The system rolls back to the previous stable architectural checkpoint.
+* The failed branch is logged as a "negative exploration," pruning that specific direction from immediate re-exploration.
+* This prevents "optimization drift" where the model chases local minima into a dead end.
+
 ---
 
 # 10. Memory System
@@ -415,6 +423,23 @@ This replaces blind meta-learning with grounded, stable initialization.
 
 ---
 
+# 15. Internal Rhythm and Temporal Error
+
+The system possesses an **Internal Clock** that generates a "sense of rhythm" for signal propagation. This introduces a second, internal source of differentiable error:
+
+* **ETA Prediction:** When a Module issues a request, it predicts an **Expected Time of Arrival (ETA)** (in internal ticks) for the response.
+* **Temporal Loss:** The difference between `Actual_Arrival_Time` and `Predicted_ETA` generates a **Temporal Error** gradient.
+    * *Late Response:* Penalizes inefficiency and computational bloat.
+    * *Infinite Loops:* Generate rapidly expanding temporal error, forcing the optimizer to "break" the loop logic to minimize pain.
+    * *Rhythm:* Encourages the graph to settle into efficient, predictable signal cycles (isochronal processing).
+
+This creates a **Dual-Objective Optimization**:
+
+1.  **External:** Minimize prediction error (Accuracy).
+2.  **Internal:** Minimize temporal error (Efficiency/Rhythm).
+
+---
+
 # 15. IP Coverage Summary
 
 Protected elements include:
@@ -428,6 +453,7 @@ Protected elements include:
 - NAS cloning + divergence + pruning,
 - memory compression curvature,
 - MindsEye meta-optimization mechanics,
-- and the complete logistical request/response system.
+- the complete logistical request/response,
+- and internal rhythm-temporal error system.
 
 This document unifies all architectural components under a single protected conceptual framework.
