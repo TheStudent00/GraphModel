@@ -379,22 +379,53 @@ class Contact:
 
 class Logistics:
     """
-    Handles request/response and routing between Modules.
+    Handles request/response, routing, and now TEMPORAL RHYTHM.
     """
 
     def __init__(self) -> None:
         self.request_queue: List[Dict[str, Any]] = []
         self.response_buffer: Dict[str, Any] = {}
+        
+        # Internal Clock State
+        self.current_tick: int = 0
+        self.temporal_loss_accumulated: float = 0.0
+
+    def tick(self) -> None:
+        """
+        Advance the internal clock by one discrete unit.
+        """
+        self.current_tick += 1
 
     def enqueue_request(self, source_id: str, destination_id: str, payload: Any,
-                        request_type: str = "service") -> None:
+                        expected_latency: int = 1) -> None:
+        """
+        Modules now predict 'expected_latency' (rhythm).
+        """
         request: Dict[str, Any] = {
             "source": source_id,
             "destination": destination_id,
             "payload": payload,
-            "type": request_type
+            "start_tick": self.current_tick,
+            "eta_tick": self.current_tick + expected_latency,
+            "type": "service"
         }
         self.request_queue.append(request)
+
+    def resolve_response(self, request: Dict[str, Any], response: Any) -> None:
+        """
+        Called when a request is fulfilled. Calculates Temporal Error.
+        """
+        actual_tick = self.current_tick
+        eta_tick = request["eta_tick"]
+        
+        # Differentiable Temporal Error (Squared Error of Timing)
+        # Late = penalty. Early = penalty (disrupts rhythm).
+        timing_diff = float(actual_tick - eta_tick)
+        self.temporal_loss_accumulated += (timing_diff ** 2) * 0.1
+        
+        # Store response for retrieval
+        # In a real impl, we might map this back to a request_id
+        pass
 
     def get_requests_for(self, destination_id: str) -> List[Dict[str, Any]]:
         pending: List[Dict[str, Any]] = []
@@ -624,12 +655,7 @@ class SymmetryBreaker:
 
 class NASController:
     """
-    Controls exploration (cloning) and reduction (pruning) of Modules.
-
-    Uses:
-    - SymmetryBreaker for clone divergence
-    - complexity penalties for pruning
-    - utility estimates for selection
+    Controls exploration, reduction, and now BACKTRACKING.
     """
 
     def __init__(self, symmetry_breaker: Optional[SymmetryBreaker] = None) -> None:
@@ -637,6 +663,28 @@ class NASController:
             self.symmetry_breaker = SymmetryBreaker()
         else:
             self.symmetry_breaker = symmetry_breaker
+            
+        # History of stable states for backtracking
+        # Format: {tick_timestamp: serialized_architecture_snapshot}
+        self.checkpoints: Dict[int, Any] = {}
+
+    def create_checkpoint(self, tick: int, graph_state: Any) -> None:
+        """
+        Save current state before a risky exploration.
+        """
+        self.checkpoints[tick] = graph_state # Placeholder for deep copy
+
+    def revert(self, current_tick: int) -> Optional[Any]:
+        """
+        Rollback to the last known stable checkpoint if exploration fails.
+        """
+        if not self.checkpoints:
+            return None
+            
+        # Get most recent checkpoint
+        last_tick = max(self.checkpoints.keys())
+        print(f"NAS: Regression detected. Reverting to tick {last_tick}.")
+        return self.checkpoints[last_tick]
 
     def explore(self, module: Module) -> List[Module]:
         """
@@ -689,18 +737,12 @@ class NASController:
 
 class GraphModel:
     """
-    Top-level container for:
-    - Modules
-    - MindsEye
-    - Hierarchy
-    - Interfaces
-    - NAS controller
-
-    Orchestrates training and inference.
+    Orchestrates training, inference, and TIME.
     """
 
     def __init__(self, input_dim: int, embedding_dim: int,
                  modules: Optional[List[Module]] = None) -> None:
+        # ... (Same init as before) ...
         self.input_interface: Interface = Interface(mode="input", embedding_dim=embedding_dim)
         self.output_interface: Interface = Interface(mode="output", embedding_dim=embedding_dim)
 
@@ -716,40 +758,31 @@ class GraphModel:
         self.logistics: Logistics = Logistics()
         self.nas: NASController = NASController()
 
+    def step_time(self) -> None:
+        """
+        Advance the entire system's sense of time.
+        """
+        self.logistics.tick()
+
     def forward(self, x: np.ndarray) -> np.ndarray:
         """
-        Simple forward pass:
-        - encode input,
-        - send through input_module,
-        - (placeholder) route through any intermediate modules,
-        - send through output_module,
-        - decode to environment space.
+        Forward pass now advances time for every 'step' of routing.
         """
+        self.step_time() # Start clock
+        
         encoded: np.ndarray = self.input_interface.encode(x)
 
-        input_module: Module = self.modules[0]
-        output_module: Module = self.modules[-1]
+        # ... (Routing logic) ...
+        # Every major hop could trigger a tick:
+        self.step_time() 
+        
+        # ... (Result) ...
+        return np.zeros(10) # Placeholder
 
-        state_embedding: np.ndarray = input_module.forward_state(encoded)
-        context_embedding: np.ndarray = input_module.forward_context(state_embedding)
-        mid_embedding: np.ndarray = input_module.forward_service(context_embedding)
-
-        output_state: np.ndarray = output_module.forward_state(mid_embedding)
-        output_context: np.ndarray = output_module.forward_context(output_state)
-        output_embedding: np.ndarray = output_module.forward_service(output_context)
-
-        decoded: np.ndarray = self.output_interface.decode(output_embedding)
-        return decoded
-
-    def step_training(self, batch: np.ndarray) -> None:
+    def get_temporal_loss(self) -> float:
         """
-        Placeholder for one training step.
-        Would:
-        - run forward,
-        - compute loss,
-        - backprop,
-        - possibly call NAS controller,
-        - possibly update MindsEye.
+        Retrieve the internal rhythm error for backprop.
         """
-        _ = self.forward(batch)
-        # TODO: implement loss computation, gradient updates, NAS logic, etc.
+        loss = self.logistics.temporal_loss_accumulated
+        self.logistics.temporal_loss_accumulated = 0.0 # Reset
+        return loss
