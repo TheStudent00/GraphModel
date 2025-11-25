@@ -440,7 +440,7 @@ This creates a **Dual-Objective Optimization**:
 
 ---
 
-# 15. IP Coverage Summary
+# 16. IP Coverage Summary
 
 Protected elements include:
 
