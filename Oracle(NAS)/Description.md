@@ -61,36 +61,25 @@ A Core is the atomic computational operator. It includes:
 
 A Core is an embedded expert capable of both computation and communication.
 
----
-
 ## 3.2 Module
 
 A Module is a container for multiple Cores:
 
-- **State Core**  
-  Long-term, slow-changing representation used to generate outputs.
+- **State Core** Long-term, slow-changing representation used to generate outputs.
 
-- **Context Core**  
-  Short-lived state modified by ongoing interactions. A fast-timescale modulator.
+- **Context Core** Short-lived state modified by ongoing interactions. A fast-timescale modulator.
 
-- **Service Core**  
-  A callable function providing transformations for other Modules on request.
+- **Service Core** A callable function providing transformations for other Modules on request.
 
-- **Contact Core**  
-  Decides whether to respond immediately, consult experts, or route the request.
+- **Contact Core** Decides whether to respond immediately, consult experts, or route the request.
 
-- **Memory subsystem**  
-  Recent (uncompressed) and older (compressed) memories in embedded space.
+- **Memory subsystem** Recent (uncompressed) and older (compressed) memories in embedded space.
 
-- **Logistics subsystem**  
-  Handles nested requests, message passing, identity, and scheduling.
+- **Logistics subsystem** Handles nested requests, message passing, identity, and scheduling.
 
-- **Complexity subsystem**  
-  Tracks space/time tokens and drives reduction or expansion under pressure.
+- **Complexity subsystem** Tracks space/time tokens and drives reduction or expansion under pressure.
 
 Modules behave as adaptive, semi-autonomous computational agents.
-
----
 
 ## 3.3 MindsEye (Meta-Learner)
 
@@ -105,6 +94,18 @@ MindsEye monitors the entire Graph:
 - and coordinates global structural updates.
 
 It is not a controller; it is an evolving meta-optimizer embedded within the system.
+
+## 3.4 Intra-Module Convolution (Saccadic Scanning)
+
+To achieve translation invariance and parameter efficiency without cloning, Cores can operate in **Scanning Mode**.
+
+Instead of processing the entire input vector $X$ in one shot, the Core:
+1.  **Permutes** $X$ to recover latent topology (grouping related features).
+2.  **Segments** the permuted sequence into overlapping windows of size $w$ with stride $s$.
+3.  **Applies** the shared Q/K/V transformation to each window independently (Weight Sharing).
+4.  **Pools** the results (via concatenation, summation, or attention-pooling).
+
+This allows a single Module to apply a learned feature-detector pattern across a "scrambled" input field, effectively **learning the convolution geometry** from scratch.
 
 ---
 
@@ -127,8 +128,6 @@ Benefits:
 
 This canonicalization is central to Graph Model’s universality.
 
----
-
 ## 4.1 Spectral Permutation Families as Core-Level Geometry
 
 Permutation logic is no longer stored inside Contact structures, nor is it modeled by simple curves. Instead, each Core owns one or more **Spectral Permutation Families**—continuous, learnable fields that generate discrete permutations for any input length via a hybrid Fourier basis.
@@ -145,8 +144,6 @@ A Spectral Permutation Family `F` is defined as a learnable function $f(t)$ comp
 To prevent aliasing—where high-frequency logic creates chaotic artifacts on small vectors—the system applies a dynamic **Nyquist Mask**. For an input of size $N$, any frequency component $f_{comp} > N/2$ is zeroed out. This ensures universality across variable-length inputs without aliasing.
 
 Each Core may maintain multiple families (e.g., "canonical" → F0, "alt1" → F1), allowing it to project the same spline-standardized features into different local geometric dialects depending on state or context.
-
----
 
 ## 4.2 Receiver-Centric Feature-Space Interpretation
 
@@ -169,8 +166,6 @@ This enforces a clean separation between:
 - **Local Perspective:** Spectral coordinate frames (defined per-Core),
 - **Communication:** Metadata (handled by Contact).
 
----
-
 ## 4.3 Contact Structure Simplification
 
 `class Contact` no longer stores permutation matrices.
@@ -191,8 +186,6 @@ This prevents:
 
 The geometry is handled solely in Cores.
 
----
-
 ## 4.4 Integration With Attention and Feature Canonicalization
 
 Cores now follow the consistent pipeline:
@@ -212,6 +205,7 @@ This preserves:
 
 Permutation Families act as **local geometric dialects** spoken by each expert module.
 
+---
 
 # 5. Attention as an Atomic Routing Primitive
 
@@ -319,7 +313,6 @@ When needed:
 This prevents suppression of specialization.
 
 ### 9.5 Evolutionary Backtracking (Safety Mechanism)
-
 MindsEye maintains a **phylogenetic tree** of architectural states. If a newly explored branch (after cloning or mutation) fails to surpass the parent's utility-to-complexity ratio within a set window, the system triggers a **Revert**.
 
 * The system rolls back to the previous stable architectural checkpoint.
