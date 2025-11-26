@@ -243,7 +243,7 @@ class QKVLayer:
 
 
 # ============================================================
-# SECTION 4 — Core WITH Permutation Families
+# SECTION 4 — Core WITH Permutation Families (Refined)
 # ============================================================
 
 class Core:
@@ -255,55 +255,91 @@ class Core:
     - Applies permutation families to reinterpret canonical spline embeddings.
     - May grow parallel Q/K/V layers.
     - May grow downstream transformation layers.
+    - Starts in Global Mode (Dense equivalent).
+    - Can evolve into Convolution/Scanning Mode via NAS.
     """
 
-    def __init__(self, input_dim: int, embedding_dim: int) -> None:
-        self.input_dim: int = input_dim
-        self.embedding_dim: int = embedding_dim
+    def __init__(self, input_dim: int, embedding_dim: int, 
+                 window_size: Optional[int] = None) -> None:
+        self.input_dim = input_dim
+        self.embedding_dim = embedding_dim
 
-        self.base_feature: SplineFeature = SplineFeature(embedding_dim=embedding_dim)
+        self.base_feature = SplineFeature(embedding_dim=embedding_dim)
+        self.permutation_families = [SpectralPermutationFamily()]
+        self.parallel_layers = []
+        self.downstream_layers = []
 
-        self.permutation_families: List[SpectralPermutationFamily] = [SpectralPermutationFamily()]
-
-        self.parallel_layers: List[QKVLayer] = []
-        self.downstream_layers: List[Any] = []
-
-        self.output_scale: float = 1.0
+        self.output_scale = 1.0
+        
+        # Default: None = Global Attention (Dense Mode)
+        # NAS can update this to an int < input_len to enable Convolution
+        self.window_size: Optional[int] = window_size 
+        self.stride: int = max(1, embedding_dim // 4) 
 
     def apply_permutation_family(self, embedding: np.ndarray, family_index: int = 0) -> np.ndarray:
-            """
-            Apply a selected permutation family to the embedding.
-            """
-            if family_index < 0 or family_index >= len(self.permutation_families):
-                return embedding
-    
-            family: SpectralPermutationFamily = self.permutation_families[family_index]
+        """
+        Apply a selected permutation family to the embedding.
+        """
+        if family_index < 0 or family_index >= len(self.permutation_families):
+            return embedding
+
+        family: SpectralPermutationFamily = self.permutation_families[family_index]
+        
+        # Update: Use the new .forward() method which handles scores -> argsort -> permute
+        permuted_embedding = family.forward(embedding)
+
+        return permuted_embedding
+
+    def _apply_scanning(self, embedding: np.ndarray) -> np.ndarray:
+        """
+        Applies Q/K/V to windows of the input (Convolution).
+        """
+        n = len(embedding)
+        w = self.window_size if self.window_size is not None else n
+        
+        # --- GLOBAL MODE (Stage I) ---
+        if w >= n:
+            token_batch = embedding[None, :]
+            for layer in self.parallel_layers:
+                token_batch = layer.forward(token_batch)
+            return token_batch[0]
+
+        # --- CONVOLUTION MODE (Stage III) ---
+        outputs = []
+        for i in range(0, n - w + 1, self.stride):
+            window = embedding[i : i + w]
+            token_batch = window[None, :]
+            for layer in self.parallel_layers:
+                token_batch = layer.forward(token_batch)
+            # Pooling (Max)
+            window_out = np.max(token_batch[0], axis=0)
+            outputs.append(window_out)
             
-            # Update: Use the new .forward() method which handles scores -> argsort -> permute
-            permuted_embedding = family.forward(embedding)
-    
-            return permuted_embedding
+        if not outputs:
+            return np.zeros_like(embedding)
+            
+        stacked = np.stack(outputs, axis=0)
+        return np.mean(stacked, axis=0)
 
     def forward(self, x: np.ndarray) -> np.ndarray:
         """
         Pipeline:
-            1. canonicalize (sort)
-            2. spline embedding
-            3. apply permutation family (local geometry)
-            4. Q/K/V layers
-            5. downstream layers
-            6. output scaling
+            1. Canonicalize (Sort)
+            2. Spline Embedding
+            3. Spectral Permutation (Recover Topology)
+            4. Convolution/Scanning (Weight Sharing)
+            5. Downstream
         """
         sorted_x: np.ndarray = self.base_feature.canonicalize(x)
         embedding: np.ndarray = self.base_feature.to_embedding(sorted_x)
 
+        # Learning Locality (Stage II)
+        # CRITICAL: This un-scrambles the vector so convolution works
         embedding = self.apply_permutation_family(embedding, family_index=0)
 
         if self.parallel_layers:
-            token_batch: np.ndarray = embedding[None, :]
-            for layer in self.parallel_layers:
-                token_batch = layer.forward(token_batch)
-            embedding = token_batch[0]
+            # Replaced direct call with scanning method
+            embedding = self._apply_scanning(embedding)
 
         for layer in self.downstream_layers:
             embedding = layer(embedding)
@@ -424,7 +460,6 @@ class Logistics:
         self.temporal_loss_accumulated += (timing_diff ** 2) * 0.1
         
         # Store response for retrieval
-        # In a real impl, we might map this back to a request_id
         pass
 
     def get_requests_for(self, destination_id: str) -> List[Dict[str, Any]]:
@@ -629,18 +664,18 @@ class SymmetryBreaker:
         return tensor + noise
 
     def perturb_core(self, core: Core) -> None:
-            if core.base_feature.spline_params is not None:
-                core.base_feature.spline_params = self.perturb_tensor(core.base_feature.spline_params)
-    
-            for permutation_family in core.permutation_families:
-                # Update: Perturb both fixed and relative spectral coefficients
-                permutation_family.fixed_coeffs = self.perturb_tensor(permutation_family.fixed_coeffs)
-                permutation_family.relative_coeffs = self.perturb_tensor(permutation_family.relative_coeffs)
-    
-            for layer in core.parallel_layers:
-                layer.matrix_q = self.perturb_tensor(layer.matrix_q)
-                layer.matrix_k = self.perturb_tensor(layer.matrix_k)
-                layer.matrix_v = self.perturb_tensor(layer.matrix_v)
+        if core.base_feature.spline_params is not None:
+            core.base_feature.spline_params = self.perturb_tensor(core.base_feature.spline_params)
+
+        for permutation_family in core.permutation_families:
+            # Update: Perturb both fixed and relative spectral coefficients
+            permutation_family.fixed_coeffs = self.perturb_tensor(permutation_family.fixed_coeffs)
+            permutation_family.relative_coeffs = self.perturb_tensor(permutation_family.relative_coeffs)
+
+        for layer in core.parallel_layers:
+            layer.matrix_q = self.perturb_tensor(layer.matrix_q)
+            layer.matrix_k = self.perturb_tensor(layer.matrix_k)
+            layer.matrix_v = self.perturb_tensor(layer.matrix_v)
 
     def apply(self, module: Module) -> Module:
         """
