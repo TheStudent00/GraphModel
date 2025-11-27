@@ -188,19 +188,13 @@ class SpectralPermutationFamily:
 
 
 # ============================================================
-# SECTION 3 — Q/K/V Atomic Attention Layer
+# SECTION 3 — Q/K/V Atomic Attention Layer (Soft Aperture)
 # ============================================================
 
 class QKVLayer:
     """
     Atomic attention structure for a Core.
-
-    - Q: what the Core is querying for.
-    - K: how inputs expose their structure.
-    - V: what is communicated when attended to.
-
-    This is a conceptual skeleton; in practice, Q/K/V will be linear
-    projections over spline embeddings or module states.
+    Now supports Differentiable Gaussian Aperture for soft windowing.
     """
 
     def __init__(self, input_dim: int, output_dim: int) -> None:
@@ -211,10 +205,11 @@ class QKVLayer:
         self.matrix_k: np.ndarray = np.random.randn(input_dim, output_dim) * 0.01
         self.matrix_v: np.ndarray = np.random.randn(input_dim, output_dim) * 0.01
 
-    def forward(self, x: np.ndarray) -> np.ndarray:
+    def forward(self, x: np.ndarray, aperture_sigma: Optional[float] = None) -> np.ndarray:
         """
         x: shape (num_tokens, input_dim)
-        Returns: shape (num_tokens, output_dim)
+        aperture_sigma: Differentiable parameter controlling window width.
+                        None or large val = Global. Small val = Local.
         """
         if x.ndim == 1:
             x = x[None, :]
@@ -224,8 +219,26 @@ class QKVLayer:
         v_projected: np.ndarray = x @ self.matrix_v
 
         scale: float = float(np.sqrt(self.output_dim))
+        
+        # 1. Base Scores
         scores: np.ndarray = (q_projected @ k_projected.T) / scale
+        
+        # 2. Apply Gaussian Aperture Bias (Soft Convolution)
+        if aperture_sigma is not None and aperture_sigma < 1e5:
+            n = scores.shape[0]
+            # Create distance matrix indices
+            # In real impl, this uses FlashAttention bias or similar kernel
+            indices = np.arange(n)
+            dist_matrix = np.abs(indices[:, None] - indices[None, :])
+            
+            # Gaussian Bias: - (dist^2) / (2 * sigma^2)
+            # As sigma shrinks, distant tokens get large negative bias (masked out)
+            gaussian_bias = -(dist_matrix**2) / (2 * (aperture_sigma**2) + 1e-6)
+            
+            # Add to raw scores
+            scores = scores + gaussian_bias
 
+        # 3. Stability normalization
         for row_index in range(scores.shape[0]):
             row_maximum: float = float(np.max(scores[row_index]))
             scores[row_index] = scores[row_index] - row_maximum
@@ -243,24 +256,53 @@ class QKVLayer:
 
 
 # ============================================================
+# SECTION 4b — Stochastic Distribution Head (Add-on)
+# ============================================================
+
+class DistributionHead:
+    """
+    Manages stochastic outputs when Aleatoric Uncertainty is high.
+    Modeled as a simplified Mixture of Gaussians for this scaffold.
+    """
+    def __init__(self, embedding_dim: int, num_modes: int = 5) -> None:
+        self.embedding_dim = embedding_dim
+        self.num_modes = num_modes
+        
+        # Learnable projections for Mixture Parameters
+        self.proj_weights = np.random.randn(embedding_dim, num_modes) * 0.01
+        self.proj_means = np.random.randn(embedding_dim, num_modes * embedding_dim) * 0.01
+        self.proj_stds = np.random.randn(embedding_dim, num_modes * embedding_dim) * 0.01
+
+    def forward(self, x: np.ndarray) -> np.ndarray:
+        """
+        Input: x (batch, embedding_dim)
+        Output: sampled_y (batch, embedding_dim)
+        """
+        # 1. Predict Mixture Weights (Softmax)
+        logits = x @ self.proj_weights # (batch, num_modes)
+        weights = np.exp(logits) / np.sum(np.exp(logits), axis=1, keepdims=True)
+        
+        # 2. Sample Mode (Gumbel-Max or simple choice)
+        # Simplified placeholder for sampling
+        best_mode = np.argmax(weights, axis=1)
+        
+        return x # Placeholder
+
+
+# ============================================================
 # SECTION 4 — Core WITH Permutation Families (Refined)
 # ============================================================
 
 class Core:
     """
     Smallest compute agent in the Graph Model.
-
-    - Starts with a single SplineFeature layer.
-    - Owns one or more SpectralPermutationFamilies.
-    - Applies permutation families to reinterpret canonical spline embeddings.
-    - May grow parallel Q/K/V layers.
-    - May grow downstream transformation layers.
-    - Starts in Global Mode (Dense equivalent).
-    - Can evolve into Convolution/Scanning Mode via NAS.
+    
+    - Starts with Differentiable Aperture (sigma -> infinity) for Global/Dense mode.
+    - Evolves to Local/Conv mode by shrinking sigma via Complexity Gradient.
+    - Can activate Stochastic Distribution Head.
     """
 
-    def __init__(self, input_dim: int, embedding_dim: int, 
-                 window_size: Optional[int] = None) -> None:
+    def __init__(self, input_dim: int, embedding_dim: int) -> None:
         self.input_dim = input_dim
         self.embedding_dim = embedding_dim
 
@@ -271,78 +313,59 @@ class Core:
 
         self.output_scale = 1.0
         
-        # Default: None = Global Attention (Dense Mode)
-        # NAS can update this to an int < input_len to enable Convolution
-        self.window_size: Optional[int] = window_size 
-        self.stride: int = max(1, embedding_dim // 4) 
+        # Continuous Aperture Control
+        # Initialized to a large value (Softplus^-1 of 100.0) so it starts Global
+        self.aperture_logits = 5.0 # Placeholder for learnable parameter
+        
+        # Stochastic Capability
+        self.is_stochastic: bool = False
+        self.distribution_head: Optional[DistributionHead] = None
+
+    def get_aperture_sigma(self) -> float:
+        # Softplus to ensure sigma > 0
+        return np.log(1 + np.exp(self.aperture_logits))
+
+    def enable_stochasticity(self) -> None:
+        if self.distribution_head is None:
+            self.distribution_head = DistributionHead(self.embedding_dim)
+        self.is_stochastic = True
 
     def apply_permutation_family(self, embedding: np.ndarray, family_index: int = 0) -> np.ndarray:
-        """
-        Apply a selected permutation family to the embedding.
-        """
         if family_index < 0 or family_index >= len(self.permutation_families):
             return embedding
-
         family: SpectralPermutationFamily = self.permutation_families[family_index]
-        
-        # Update: Use the new .forward() method which handles scores -> argsort -> permute
-        permuted_embedding = family.forward(embedding)
-
-        return permuted_embedding
-
-    def _apply_scanning(self, embedding: np.ndarray) -> np.ndarray:
-        """
-        Applies Q/K/V to windows of the input (Convolution).
-        """
-        n = len(embedding)
-        w = self.window_size if self.window_size is not None else n
-        
-        # --- GLOBAL MODE (Stage I) ---
-        if w >= n:
-            token_batch = embedding[None, :]
-            for layer in self.parallel_layers:
-                token_batch = layer.forward(token_batch)
-            return token_batch[0]
-
-        # --- CONVOLUTION MODE (Stage III) ---
-        outputs = []
-        for i in range(0, n - w + 1, self.stride):
-            window = embedding[i : i + w]
-            token_batch = window[None, :]
-            for layer in self.parallel_layers:
-                token_batch = layer.forward(token_batch)
-            # Pooling (Max)
-            window_out = np.max(token_batch[0], axis=0)
-            outputs.append(window_out)
-            
-        if not outputs:
-            return np.zeros_like(embedding)
-            
-        stacked = np.stack(outputs, axis=0)
-        return np.mean(stacked, axis=0)
+        return family.forward(embedding)
 
     def forward(self, x: np.ndarray) -> np.ndarray:
         """
         Pipeline:
-            1. Canonicalize (Sort)
-            2. Spline Embedding
-            3. Spectral Permutation (Recover Topology)
-            4. Convolution/Scanning (Weight Sharing)
-            5. Downstream
+            1. Canonicalize (Sort) -> Spline
+            2. Permutation (Topology Recovery)
+            3. Differentiable Aperture Attention (Global -> Local)
+            4. Stochastic Head (Optional)
         """
-        sorted_x: np.ndarray = self.base_feature.canonicalize(x)
-        embedding: np.ndarray = self.base_feature.to_embedding(sorted_x)
-
-        # Learning Locality (Stage II)
-        # CRITICAL: This un-scrambles the vector so convolution works
+        sorted_x = self.base_feature.canonicalize(x)
+        embedding = self.base_feature.to_embedding(sorted_x)
+        
+        # Learn Topology (Reorder vector to group neighbors)
         embedding = self.apply_permutation_family(embedding, family_index=0)
 
+        # Apply Attention with Soft Aperture
+        current_sigma = self.get_aperture_sigma()
+        
         if self.parallel_layers:
-            # Replaced direct call with scanning method
-            embedding = self._apply_scanning(embedding)
+            token_batch = embedding[None, :]
+            for layer in self.parallel_layers:
+                # Pass sigma to mask distant tokens
+                token_batch = layer.forward(token_batch, aperture_sigma=current_sigma)
+            embedding = token_batch[0]
 
         for layer in self.downstream_layers:
             embedding = layer(embedding)
+
+        # Stochastic Sampling (If Active)
+        if self.is_stochastic and self.distribution_head:
+            embedding = self.distribution_head.forward(embedding)
 
         embedding = self.output_scale * embedding
         return embedding
@@ -394,14 +417,7 @@ class Memory:
 class Contact:
     """
     Contact is now purely logistical.
-
-    Responsibilities:
-        - target_module_id
-        - optional routing metadata
-
-    It no longer stores any permutation matrices.
     """
-
     def __init__(self, target_module_id: str) -> None:
         self.target_module_id: str = target_module_id
         self.metadata: Dict[str, Any] = {}
@@ -415,7 +431,7 @@ class Contact:
 
 class Logistics:
     """
-    Handles request/response, routing, and now TEMPORAL RHYTHM.
+    Handles request/response, routing, and TEMPORAL RHYTHM.
     """
 
     def __init__(self) -> None:
@@ -427,16 +443,10 @@ class Logistics:
         self.temporal_loss_accumulated: float = 0.0
 
     def tick(self) -> None:
-        """
-        Advance the internal clock by one discrete unit.
-        """
         self.current_tick += 1
 
     def enqueue_request(self, source_id: str, destination_id: str, payload: Any,
                         expected_latency: int = 1) -> None:
-        """
-        Modules now predict 'expected_latency' (rhythm).
-        """
         request: Dict[str, Any] = {
             "source": source_id,
             "destination": destination_id,
@@ -448,30 +458,22 @@ class Logistics:
         self.request_queue.append(request)
 
     def resolve_response(self, request: Dict[str, Any], response: Any) -> None:
-        """
-        Called when a request is fulfilled. Calculates Temporal Error.
-        """
         actual_tick = self.current_tick
         eta_tick = request["eta_tick"]
         
         # Differentiable Temporal Error (Squared Error of Timing)
-        # Late = penalty. Early = penalty (disrupts rhythm).
         timing_diff = float(actual_tick - eta_tick)
         self.temporal_loss_accumulated += (timing_diff ** 2) * 0.1
-        
-        # Store response for retrieval
         pass
 
     def get_requests_for(self, destination_id: str) -> List[Dict[str, Any]]:
         pending: List[Dict[str, Any]] = []
         remaining: List[Dict[str, Any]] = []
-
         for request in self.request_queue:
             if request["destination"] == destination_id:
                 pending.append(request)
             else:
                 remaining.append(request)
-
         self.request_queue = remaining
         return pending
 
@@ -489,15 +491,7 @@ class Logistics:
 class Module:
     """
     A Module is an adaptive agent-like computational unit.
-
-    Roles:
-    - state_core: long-term identity / summary
-    - context_core: fast-changing context
-    - service_core: direct transformation service
-    - contact list: known communication peers
-    - memory, logistics, complexity
     """
-
     def __init__(self, module_id: str, input_dim: int, embedding_dim: int) -> None:
         self.id: str = module_id
         self.input_dim: int = input_dim
@@ -509,7 +503,6 @@ class Module:
 
         self.memory: Memory = Memory()
         self.contacts: Dict[str, Contact] = {}
-
         self.complexity: Complexity = Complexity()
         self.utility: float = 0.0
 
@@ -519,71 +512,41 @@ class Module:
         return self.contacts[target_module_id]
 
     def forward_state(self, x: np.ndarray) -> np.ndarray:
-        state_embedding: np.ndarray = self.state_core.forward(x)
-        return state_embedding
+        return self.state_core.forward(x)
 
     def forward_context(self, state_embedding: np.ndarray,
                         external_context: Optional[np.ndarray] = None) -> np.ndarray:
         if external_context is not None:
-            combined_list: List[float] = []
-            for value in state_embedding:
-                combined_list.append(float(value))
-            for value in external_context:
-                combined_list.append(float(value))
-            combined: np.ndarray = np.array(combined_list, dtype=float)
+            combined_list = list(state_embedding) + list(external_context)
+            combined = np.array(combined_list, dtype=float)
         else:
             combined = state_embedding
-
-        context_embedding: np.ndarray = self.context_core.forward(combined)
-        return context_embedding
+        return self.context_core.forward(combined)
 
     def forward_service(self, context_embedding: np.ndarray,
                         request_payload: Optional[np.ndarray] = None) -> np.ndarray:
         if request_payload is not None:
-            combined_list: List[float] = []
-            for value in context_embedding:
-                combined_list.append(float(value))
-            for value in request_payload:
-                combined_list.append(float(value))
-            combined: np.ndarray = np.array(combined_list, dtype=float)
+            combined_list = list(context_embedding) + list(request_payload)
+            combined = np.array(combined_list, dtype=float)
         else:
             combined = context_embedding
-
-        output_embedding: np.ndarray = self.service_core.forward(combined)
-        return output_embedding
+        return self.service_core.forward(combined)
 
     def clone(self) -> "Module":
-        """
-        Structural clone placeholder.
-        In a real implementation, parameters should be explicitly copied.
-        """
-        cloned: Module = Module(
-            module_id=self.id + "_clone",
-            input_dim=self.input_dim,
-            embedding_dim=self.embedding_dim
-        )
+        cloned: Module = Module(self.id + "_clone", self.input_dim, self.embedding_dim)
         return cloned
 
 
 class MindsEye(Module):
     """
     Meta-learning / architecture oversight module.
-
-    Inherits Module structure, but its "service" operates on
-    graph state and architecture descriptions rather than raw data.
     """
-
     def __init__(self, module_id: str = "minds_eye",
                  input_dim: int = 128, embedding_dim: int = 256) -> None:
         super().__init__(module_id, input_dim, embedding_dim)
         self.architecture_memory: Memory = Memory()
 
     def update_architecture(self, graph_state: Dict[str, Any]) -> None:
-        """
-        Update or propose changes to the architecture based on observed state.
-        Placeholder; real logic would analyze module utilities, complexity,
-        divergence patterns, and route NAS operations.
-        """
         dummy_embedding: np.ndarray = np.zeros(self.embedding_dim, dtype=float)
         self.architecture_memory.store(dummy_embedding)
 
@@ -593,18 +556,9 @@ class MindsEye(Module):
 # ============================================================
 
 class HierarchyManager:
-    """
-    Tracks nascent abstraction levels.
-
-    - num_levels: default 33
-    - level_states: 'identity' or 'active'
-    """
-
     def __init__(self, num_levels: int = 33) -> None:
         self.num_levels: int = num_levels
-        self.level_states: List[str] = []
-        for _ in range(num_levels):
-            self.level_states.append("identity")
+        self.level_states: List[str] = ["identity"] * num_levels
 
     def activate_level(self, level_index: int) -> None:
         if 0 <= level_index < self.num_levels:
@@ -612,22 +566,11 @@ class HierarchyManager:
 
 
 class Interface:
-    """
-    Environment <-> GraphModel adapter.
-
-    - mode: 'input', 'output', or 'dual'
-    - encode: raw -> embedding
-    - decode: embedding -> raw
-    """
-
     def __init__(self, mode: str = "input", embedding_dim: int = 256) -> None:
         self.mode: str = mode
         self.embedding_dim: int = embedding_dim
 
     def encode(self, x: np.ndarray) -> np.ndarray:
-        """
-        Placeholder encoder. In practice, could be a learned module.
-        """
         result: np.ndarray = np.zeros(self.embedding_dim, dtype=float)
         limit: int = min(self.embedding_dim, x.size)
         for index in range(limit):
@@ -635,9 +578,6 @@ class Interface:
         return result
 
     def decode(self, y: np.ndarray) -> np.ndarray:
-        """
-        Placeholder decoder; returns y as-is for now.
-        """
         return y
 
 
@@ -647,40 +587,30 @@ class Interface:
 
 class SymmetryBreaker:
     """
-    Implements controlled symmetry-breaking during NAS cloning.
-
-    Applies small perturbations to cloned Modules to ensure they
-    diverge under gradient descent rather than remaining locked
-    in identical parameter subspaces.
+    Implements controlled symmetry-breaking.
     """
-
     def __init__(self, noise_scale: float = 1e-5) -> None:
         self.noise_scale: float = noise_scale
 
     def perturb_tensor(self, tensor: Optional[np.ndarray]) -> Optional[np.ndarray]:
-        if tensor is None:
-            return None
+        if tensor is None: return None
         noise: np.ndarray = self.noise_scale * np.random.randn(*tensor.shape)
         return tensor + noise
 
     def perturb_core(self, core: Core) -> None:
         if core.base_feature.spline_params is not None:
             core.base_feature.spline_params = self.perturb_tensor(core.base_feature.spline_params)
-
-        for permutation_family in core.permutation_families:
-            # Update: Perturb both fixed and relative spectral coefficients
-            permutation_family.fixed_coeffs = self.perturb_tensor(permutation_family.fixed_coeffs)
-            permutation_family.relative_coeffs = self.perturb_tensor(permutation_family.relative_coeffs)
-
+        for family in core.permutation_families:
+            family.fixed_coeffs = self.perturb_tensor(family.fixed_coeffs)
+            family.relative_coeffs = self.perturb_tensor(family.relative_coeffs)
         for layer in core.parallel_layers:
             layer.matrix_q = self.perturb_tensor(layer.matrix_q)
             layer.matrix_k = self.perturb_tensor(layer.matrix_k)
             layer.matrix_v = self.perturb_tensor(layer.matrix_v)
+        # Perturb aperture slightly to encourage gradient flow
+        core.aperture_logits += np.random.randn() * 0.1
 
     def apply(self, module: Module) -> Module:
-        """
-        Apply symmetry-breaking perturbations to all Cores inside a Module.
-        """
         for core_attribute in ["state_core", "context_core", "service_core"]:
             core: Core = getattr(module, core_attribute, None)
             if core is not None:
@@ -690,80 +620,40 @@ class SymmetryBreaker:
 
 class NASController:
     """
-    Controls exploration, reduction, and now BACKTRACKING.
+    Controls exploration, reduction, and BACKTRACKING.
     """
-
     def __init__(self, symmetry_breaker: Optional[SymmetryBreaker] = None) -> None:
-        if symmetry_breaker is None:
-            self.symmetry_breaker = SymmetryBreaker()
-        else:
-            self.symmetry_breaker = symmetry_breaker
-            
-        # History of stable states for backtracking
-        # Format: {tick_timestamp: serialized_architecture_snapshot}
+        self.symmetry_breaker = symmetry_breaker if symmetry_breaker else SymmetryBreaker()
         self.checkpoints: Dict[int, Any] = {}
 
     def create_checkpoint(self, tick: int, graph_state: Any) -> None:
-        """
-        Save current state before a risky exploration.
-        """
-        self.checkpoints[tick] = graph_state # Placeholder for deep copy
+        self.checkpoints[tick] = graph_state 
 
     def revert(self, current_tick: int) -> Optional[Any]:
-        """
-        Rollback to the last known stable checkpoint if exploration fails.
-        """
-        if not self.checkpoints:
-            return None
-            
-        # Get most recent checkpoint
+        if not self.checkpoints: return None
         last_tick = max(self.checkpoints.keys())
         print(f"NAS: Regression detected. Reverting to tick {last_tick}.")
         return self.checkpoints[last_tick]
 
     def explore(self, module: Module) -> List[Module]:
-        """
-        Clone a module into two variants and apply symmetry breaking.
-
-        Returns:
-            [clone_a, clone_b]
-        """
         clone_a: Module = module.clone()
         clone_b: Module = module.clone()
-
         clone_a = self.symmetry_breaker.apply(clone_a)
         clone_b = self.symmetry_breaker.apply(clone_b)
-
         scale: float = module.state_core.output_scale
         clone_a.state_core.output_scale = 0.5 * scale
         clone_b.state_core.output_scale = 0.5 * scale
-
         return [clone_a, clone_b]
 
-    def reduce(self, modules: List[Module],
-               complexity_penalty_fn: Any) -> List[Module]:
-        """
-        Prune redundant modules based on:
-        - utility (module.utility)
-        - complexity penalties.
-
-        Returns a selected subset of modules.
-        """
+    def reduce(self, modules: List[Module], complexity_penalty_fn: Any) -> List[Module]:
         scored: List[Dict[str, Any]] = []
-
         for module in modules:
             penalty: float = float(complexity_penalty_fn(module))
             score: float = float(module.utility) - penalty
             scored.append({"score": score, "module": module})
-
         scored.sort(key=lambda item: item["score"], reverse=True)
-
         number_to_keep: int = max(len(scored) // 2, 1)
-        survivors: List[Module] = []
-        for index in range(number_to_keep):
-            survivors.append(scored[index]["module"])
-
-        return survivors
+        return [item["module"] for item in scored[:number_to_keep]]
 
 
 # ============================================================
@@ -774,10 +664,8 @@ class GraphModel:
     """
     Orchestrates training, inference, and TIME.
     """
-
     def __init__(self, input_dim: int, embedding_dim: int,
                  modules: Optional[List[Module]] = None) -> None:
-        # ... (Same init as before) ...
         self.input_interface: Interface = Interface(mode="input", embedding_dim=embedding_dim)
         self.output_interface: Interface = Interface(mode="output", embedding_dim=embedding_dim)
 
@@ -794,30 +682,16 @@ class GraphModel:
         self.nas: NASController = NASController()
 
     def step_time(self) -> None:
-        """
-        Advance the entire system's sense of time.
-        """
         self.logistics.tick()
 
     def forward(self, x: np.ndarray) -> np.ndarray:
-        """
-        Forward pass now advances time for every 'step' of routing.
-        """
-        self.step_time() # Start clock
-        
+        self.step_time()
         encoded: np.ndarray = self.input_interface.encode(x)
-
-        # ... (Routing logic) ...
-        # Every major hop could trigger a tick:
-        self.step_time() 
-        
-        # ... (Result) ...
-        return np.zeros(10) # Placeholder
+        self.step_time()
+        # Placeholder for routing execution
+        return np.zeros(10) 
 
     def get_temporal_loss(self) -> float:
-        """
-        Retrieve the internal rhythm error for backprop.
-        """
         loss = self.logistics.temporal_loss_accumulated
-        self.logistics.temporal_loss_accumulated = 0.0 # Reset
+        self.logistics.temporal_loss_accumulated = 0.0
         return loss
