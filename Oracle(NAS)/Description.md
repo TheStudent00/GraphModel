@@ -95,17 +95,15 @@ MindsEye monitors the entire Graph:
 
 It is not a controller; it is an evolving meta-optimizer embedded within the system.
 
-## 3.4 Intra-Module Convolution (Saccadic Scanning)
+## 3.4 Continuous Differentiable Aperture (Smooth Evolution)
 
-To achieve translation invariance and parameter efficiency without cloning, Cores can operate in **Scanning Mode**.
+Instead of discrete "Scanning Modes," Cores utilize a **Differentiable Gaussian Aperture** to manage the receptive field. This replaces discrete window integers with a continuous parameter $\sigma$ (sigma).
 
-Instead of processing the entire input vector $X$ in one shot, the Core:
-1.  **Permutes** $X$ to recover latent topology (grouping related features).
-2.  **Segments** the permuted sequence into overlapping windows of size $w$ with stride $s$.
-3.  **Applies** the shared Q/K/V transformation to each window independently (Weight Sharing).
-4.  **Pools** the results (via concatenation, summation, or attention-pooling).
+1.  **Dense Initialization (Oracle Default):** $\sigma \to \infty$. The Gaussian mask is effectively flat, equivalent to Global Attention. This ensures universal connectivity at the start.
+2.  **Smooth Constriction:** A **Complexity Penalty** applies pressure to $\sigma$. If the learned Spectral Permutation (Section 4.1) successfully clusters related features, the gradient drives $\sigma$ down, smoothly constricting the attention window into a local convolution.
+3.  **Meta-Gradients:** MindsEye may compute lookahead meta-gradients to determine if tightening $\sigma$ accelerates learning curves, effectively "predicting" the value of locality before fully committing.
 
-This allows a single Module to apply a learned feature-detector pattern across a "scrambled" input field, effectively **learning the convolution geometry** from scratch.
+This allows the architecture to evolve from "Dense" to "Conv" via differentiable physics rather than random mutation.
 
 ---
 
@@ -195,7 +193,7 @@ Cores now follow the consistent pipeline:
 3. **Select** a permutation family based on internal logic.  
 4. **Generate** a discrete permutation for the vector length.  
 5. **Reorder** the spline embedding into the local coordinate frame.  
-6. **Apply Q/K/V attention** within that frame.
+6. **Apply Q/K/V attention** within that frame (modified by Differentiable Aperture).
 
 This preserves:
 - universality of splines,
@@ -205,7 +203,6 @@ This preserves:
 
 Permutation Families act as **local geometric dialects** spoken by each expert module.
 
----
 
 # 5. Attention as an Atomic Routing Primitive
 
@@ -433,7 +430,19 @@ This creates a **Dual-Objective Optimization**:
 
 ---
 
-# 16. IP Coverage Summary
+# 16. Stochasticity and Distribution Heads
+
+The system distinguishes between **Epistemic Uncertainty** (I need more complexity to understand) and **Aleatoric Uncertainty** (The data is inherently random).
+
+* **Deterministic Mode (Default):** Cores output point-estimates (vectors).
+* **Stochastic Mode:** If MindsEye detects an irreducible loss floor despite complexity scaling, it enables **Distribution Heads**.
+    * Instead of a vector $y$, the Core outputs distribution parameters $\theta$ (e.g., Mixture Weights or Spectral Density Coefficients).
+    * The system samples $\hat{y} \sim P(y|\theta)$.
+    * This allows the model to capture multi-modal truths (e.g., "The output is either A or B, but never the average of A and B").
+
+---
+
+# 17. IP Coverage Summary
 
 Protected elements include:
 
@@ -447,6 +456,7 @@ Protected elements include:
 - memory compression curvature,
 - MindsEye meta-optimization mechanics,
 - the complete logistical request/response,
-- and internal rhythm-temporal error system.
+- internal rhythm-temporal error system,
+- and the differentiable aperture evolution (Dense-to-Conv).
 
 This document unifies all architectural components under a single protected conceptual framework.
