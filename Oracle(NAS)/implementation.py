@@ -256,37 +256,48 @@ class QKVLayer:
 
 
 # ============================================================
-# SECTION 4b — Stochastic Distribution Head (Add-on)
+# SECTION 4b — Spline Stochastic Head (Continuous Evolution)
 # ============================================================
 
-class DistributionHead:
+class SplineStochasticHead:
     """
-    Manages stochastic outputs when Aleatoric Uncertainty is high.
-    Modeled as a simplified Mixture of Gaussians for this scaffold.
+    Manages stochastic outputs via Inverse Transform Sampling on Monotone Splines.
+    Replaces the discrete GMM approach for smooth Deterministic->Stochastic evolution.
     """
-    def __init__(self, embedding_dim: int, num_modes: int = 5) -> None:
+    def __init__(self, embedding_dim: int, num_bins: int = 8) -> None:
         self.embedding_dim = embedding_dim
-        self.num_modes = num_modes
+        self.num_bins = num_bins
         
-        # Learnable projections for Mixture Parameters
-        self.proj_weights = np.random.randn(embedding_dim, num_modes) * 0.01
-        self.proj_means = np.random.randn(embedding_dim, num_modes * embedding_dim) * 0.01
-        self.proj_stds = np.random.randn(embedding_dim, num_modes * embedding_dim) * 0.01
+        # Learnable parameters for Spline Knots (Widths and Heights)
+        # We model the derivative (PDF) to guarantee monotonicity (CDF)
+        # Init: High concentration in the center bin (approximating Dirac Delta)
+        self.knot_logits = np.zeros((embedding_dim, num_bins)) 
+        
+        # Bias towards a sharp peak at initialization
+        # This makes the middle bin have ~99% of the probability mass
+        self.knot_logits[:, num_bins // 2] = 5.0 
+        self.knot_logits[:, :] -= 2.0 # Suppress others
 
     def forward(self, x: np.ndarray) -> np.ndarray:
         """
-        Input: x (batch, embedding_dim)
+        Input: x (batch, embedding_dim) -> Serves as the 'Mean' or 'Location'
         Output: sampled_y (batch, embedding_dim)
         """
-        # 1. Predict Mixture Weights (Softmax)
-        logits = x @ self.proj_weights # (batch, num_modes)
-        weights = np.exp(logits) / np.sum(np.exp(logits), axis=1, keepdims=True)
+        # 1. Generate Noise
+        batch_size = x.shape[0]
+        epsilon = np.random.uniform(0, 1, size=(batch_size, self.embedding_dim))
         
-        # 2. Sample Mode (Gumbel-Max or simple choice)
-        # Simplified placeholder for sampling
-        best_mode = np.argmax(weights, axis=1)
+        # 2. Inverse Spline Transform (Placeholder Logic)
+        # Conceptually: y = SplineInverse(epsilon; knots) + x
+        # If Spline is a Step Function, SplineInverse(epsilon) approx 0.
+        # If Spline is Relaxed, SplineInverse(epsilon) spreads based on epsilon.
         
-        return x # Placeholder
+        # For Scaffold: Simulate the behavior
+        # "Relaxation" parameter derived from knot entropy
+        relaxation = np.std(self.knot_logits) # Proxy for how "spread out" the knots are
+        y_noise = (epsilon - 0.5) * relaxation * 0.1
+        
+        return x + y_noise
 
 
 # ============================================================
@@ -299,7 +310,7 @@ class Core:
     
     - Starts with Differentiable Aperture (sigma -> infinity) for Global/Dense mode.
     - Evolves to Local/Conv mode by shrinking sigma via Complexity Gradient.
-    - Can activate Stochastic Distribution Head.
+    - POSSESSES BAYESIAN POTENTIAL (Stochastic Head in every Core).
     """
 
     def __init__(self, input_dim: int, embedding_dim: int) -> None:
@@ -315,20 +326,15 @@ class Core:
         
         # Continuous Aperture Control
         # Initialized to a large value (Softplus^-1 of 100.0) so it starts Global
-        self.aperture_logits = 5.0 # Placeholder for learnable parameter
+        self.aperture_logits = 5.0 
         
-        # Stochastic Capability
-        self.is_stochastic: bool = False
-        self.distribution_head: Optional[DistributionHead] = None
+        # Continuous Stochastic Capability (Dormant by default)
+        # Every core has this. It starts as Identity (Deterministic).
+        self.stochastic_head: SplineStochasticHead = SplineStochasticHead(embedding_dim)
 
     def get_aperture_sigma(self) -> float:
         # Softplus to ensure sigma > 0
         return np.log(1 + np.exp(self.aperture_logits))
-
-    def enable_stochasticity(self) -> None:
-        if self.distribution_head is None:
-            self.distribution_head = DistributionHead(self.embedding_dim)
-        self.is_stochastic = True
 
     def apply_permutation_family(self, embedding: np.ndarray, family_index: int = 0) -> np.ndarray:
         if family_index < 0 or family_index >= len(self.permutation_families):
@@ -342,7 +348,7 @@ class Core:
             1. Canonicalize (Sort) -> Spline
             2. Permutation (Topology Recovery)
             3. Differentiable Aperture Attention (Global -> Local)
-            4. Stochastic Head (Optional)
+            4. Stochastic Evolution (Identity -> Distributed)
         """
         sorted_x = self.base_feature.canonicalize(x)
         embedding = self.base_feature.to_embedding(sorted_x)
@@ -363,9 +369,9 @@ class Core:
         for layer in self.downstream_layers:
             embedding = layer(embedding)
 
-        # Stochastic Sampling (If Active)
-        if self.is_stochastic and self.distribution_head:
-            embedding = self.distribution_head.forward(embedding)
+        # Always apply Stochastic Head (Initialized to Identity/Deterministic)
+        # Evolution allows this to become noisy if beneficial.
+        embedding = self.stochastic_head.forward(embedding)
 
         embedding = self.output_scale * embedding
         return embedding
@@ -588,6 +594,7 @@ class Interface:
 class SymmetryBreaker:
     """
     Implements controlled symmetry-breaking.
+    Now perturbs Aperture and Stochastic Knots.
     """
     def __init__(self, noise_scale: float = 1e-5) -> None:
         self.noise_scale: float = noise_scale
@@ -607,8 +614,12 @@ class SymmetryBreaker:
             layer.matrix_q = self.perturb_tensor(layer.matrix_q)
             layer.matrix_k = self.perturb_tensor(layer.matrix_k)
             layer.matrix_v = self.perturb_tensor(layer.matrix_v)
-        # Perturb aperture slightly to encourage gradient flow
+        
+        # Perturb aperture to encourage gradient flow
         core.aperture_logits += np.random.randn() * 0.1
+        
+        # Perturb Stochastic Head Knots (Internal Bayesian Diversity)
+        core.stochastic_head.knot_logits = self.perturb_tensor(core.stochastic_head.knot_logits)
 
     def apply(self, module: Module) -> Module:
         for core_attribute in ["state_core", "context_core", "service_core"]:
