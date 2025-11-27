@@ -58,6 +58,7 @@ A Core is the atomic computational operator. It includes:
 - **Parallel Q/K/V feature layers** for attention-based routing and transformation.
 - **Contextual mixing** via softmax(QK)·V.
 - **Expandable parallel and downstream feature layers** through NAS.
+- **Bayesian Potential:** Every Core possesses the dormant capability to operate stochastically via Spline Flows (see Section 16).
 
 A Core is an embedded expert capable of both computation and communication.
 
@@ -430,15 +431,18 @@ This creates a **Dual-Objective Optimization**:
 
 ---
 
-# 16. Stochasticity and Distribution Heads
+# 16. Continuous Stochastic Evolution (Spline Flows)
 
-The system distinguishes between **Epistemic Uncertainty** (I need more complexity to understand) and **Aleatoric Uncertainty** (The data is inherently random).
+To maintain the principle of "Smooth Evolution," the system does not discretely switch between Deterministic and Stochastic modes. Instead, it utilizes **Differentiable Monotone Spline Flows** embedded in every Core.
 
-* **Deterministic Mode (Default):** Cores output point-estimates (vectors).
-* **Stochastic Mode:** If MindsEye detects an irreducible loss floor despite complexity scaling, it enables **Distribution Heads**.
-    * Instead of a vector $y$, the Core outputs distribution parameters $\theta$ (e.g., Mixture Weights or Spectral Density Coefficients).
-    * The system samples $\hat{y} \sim P(y|\theta)$.
-    * This allows the model to capture multi-modal truths (e.g., "The output is either A or B, but never the average of A and B").
+* **The Mechanism:** Cores output parameters for a Monotone Spline CDF (Cumulative Distribution Function) rather than raw vectors.
+* **Sampling:** The system generates a sample via **Inverse Transform Sampling**: $y = F^{-1}(\epsilon)$ where $\epsilon \sim U[0, 1]$.
+* **Initialization (The Identity):** The spline is initialized as a **Heaviside Step Function** (approximate).
+    * In this state, $F^{-1}(\epsilon) \approx \text{Mean}$ for all $\epsilon$.
+    * The noise is "squeezed out," and the system behaves deterministically by default.
+* **Evolution:** As Aleatoric Uncertainty is detected, the spline knots relax. The "Step" becomes a "Sigmoid" (Gaussian-like) or a multi-step curve (Multi-modal).
+    * This allows the system to smoothly evolve from Point-Estimation to Density-Estimation without breaking the computational graph.
+    * This capability exists in all Cores (Internal Stochasticity), allowing the propagation of uncertainty and counterfactual simulation.
 
 ---
 
@@ -457,6 +461,7 @@ Protected elements include:
 - MindsEye meta-optimization mechanics,
 - the complete logistical request/response,
 - internal rhythm-temporal error system,
-- and the differentiable aperture evolution (Dense-to-Conv).
+- differentiable aperture evolution (Dense-to-Conv),
+- and continuous stochastic evolution via spline flows.
 
 This document unifies all architectural components under a single protected conceptual framework.
