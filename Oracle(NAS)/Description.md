@@ -18,7 +18,7 @@ This description asserts IP protection over:
 - overlap management and symmetry-breaking mechanisms,
 - internal memory compression/expansion logic,
 - module-to-module logistics (request/response),
-- learnable permutation structures per contact,
+- learnable permutation structures per contact (Dual-Axis),
 - meta-learning strategies for bootstrapping MindsEye,
 - and the general organizational logic of the Graph Model Oracle.
 
@@ -72,7 +72,7 @@ A Module is a container for multiple Cores:
 
 - **Service Core** A callable function providing transformations for other Modules on request.
 
-- **Contact Core** Decides whether to respond immediately, consult experts, or route the request.
+- **Connector Subsystem** A set of learnable input ports managing connections to other modules (see Section 12).
 
 - **Memory subsystem** Recent (uncompressed) and older (compressed) memories in embedded space.
 
@@ -142,68 +142,16 @@ A Spectral Permutation Family `F` is defined as a learnable function $f(t)$ comp
 **The Nyquist Guardrail:**
 To prevent aliasing—where high-frequency logic creates chaotic artifacts on small vectors—the system applies a dynamic **Nyquist Mask**. For an input of size $N$, any frequency component $f_{comp} > N/2$ is zeroed out. This ensures universality across variable-length inputs without aliasing.
 
-Each Core may maintain multiple families (e.g., "canonical" → F0, "alt1" → F1), allowing it to project the same spline-standardized features into different local geometric dialects depending on state or context.
-
 ## 4.2 Receiver-Centric Feature-Space Interpretation
 
-Permutation Families belong strictly to the **receiving module**, not the sender.
-
-This ensures:
+Permutation Families belong strictly to the **receiving module**, not the sender. This ensures:
 - The receiver controls its own feature-space geometry (Subjective Interpretation).
 - Cores maintain a stable internal canonical form regardless of input source.
-- The number of permutations scales as $O(\text{modules} \times \text{families})$ rather than $O(\text{modules}^2)$.
 
-**Differentiable Rank & Pipeline:**
-Incoming messages are processed through a differentiable pipeline:
+**Index-Synchronous Pipeline:**
+Unlike traditional discrete methods (Gumbel-Sinkhorn), this architecture learns the **Law of the Permutation**. However, to preserve data integrity across the graph, Cores operate on an **Index-Synchronous** basis: the I/O of a Core maintains the fundamental patch count and positional logic. Any shuffling for internal processing is local.
 
-    raw_in → monotone-spline sorting → Spectral f(t) scores → SoftSort/Relaxation → Q/K/V projection
-
-Unlike traditional discrete methods (Gumbel-Sinkhorn), this architecture learns the **Law of the Permutation** via **Spectral Regularization**. By penalizing high-frequency coefficients, the system enforces a "Complexity Gradient" on the structure itself, learning simple geometric moves (low cost) before evolving complex, high-frequency shuffles.
-
-This enforces a clean separation between:
-- **Universal Reality:** Spline geometry (shared by all modules),
-- **Local Perspective:** Spectral coordinate frames (defined per-Core),
-- **Communication:** Metadata (handled by Contact).
-
-## 4.3 Contact Structure Simplification
-
-`class Contact` no longer stores permutation matrices.
-
-Its role is now minimal and strictly logistical:
-
-    - identify target module
-    - store communication metadata
-    - track request/response channels
-    - optionally store sparse routing preferences
-
-The Contact object is no longer responsible for index geometry.
-
-This prevents:
-- combinatorial explosion of pairwise per-module permutations,
-- degradation of expert-local identity,
-- cross-module entanglement of feature geometry.
-
-The geometry is handled solely in Cores.
-
-## 4.4 Integration With Attention and Feature Canonicalization
-
-Cores now follow the consistent pipeline:
-
-1. **Sort** incoming vector into monotone canonical curve.  
-2. **Spline-encode** canonicalized curvature.  
-3. **Select** a permutation family based on internal logic.  
-4. **Generate** a discrete permutation for the vector length.  
-5. **Reorder** the spline embedding into the local coordinate frame.  
-6. **Apply Q/K/V attention** within that frame (modified by Differentiable Aperture).
-
-This preserves:
-- universality of splines,
-- diversity of expert geometries,
-- compatibility of heterogeneous modules,
-- and stability of all attention operations.
-
-Permutation Families act as **local geometric dialects** spoken by each expert module.
-
+---
 
 # 5. Attention as an Atomic Routing Primitive
 
@@ -346,26 +294,29 @@ This is an architectural energy model guiding structural evolution.
 
 ---
 
-# 12. Contact Structure and Multi-Permutation Support
+# 12. Connector and Dual-Axis Permutation (Routing)
 
-Each Module maintains a **Contact** mapping:
+Connections between modules are managed by a **Connector** object owned by the *Receiver*. This replaces simple edge pointers with a **Learnable Input Port**.
 
-contact[target_module_id] → { permutation structures }
+### 12.1 Dual-Axis Spectral Permutation
+To align the "Language" of the Sender ($S$) with the Receiver ($R$) without computationally expensive $O(N^2)$ matrices, the Connector employs two distinct Spectral Permutations:
 
+1.  **Row Permutation (Topological Alignment):** Reorders the *sequence* of incoming vectors. This aligns the temporal/spatial logic (e.g., mapping Sender's "Index 5" to Receiver's "Index 0").
+2.  **Column Permutation (Semantic Alignment):** Reorders the *dimensions* within each embedding vector. This aligns feature logic (e.g., mapping Sender's "Channel 10" to Receiver's "Channel 255").
 
-Why?
+This allows $S$ and $R$ to communicate efficiently by "shuffling" data into alignment rather than transforming it.
 
-- Different Modules require feature detectors in different canonical orders.
-- A single learned permutation is insufficient.
-- Modules need *module-specific permutations* for stable interaction.
-- Contact-specific permutation sets allow:
+### 12.2 Differentiable Synaptogenesis (Ghost Connections)
+To enable smooth architectural evolution, connections are not binary (Exist/Null).
+* **Ghost State:** Potential connections exist with a strength $\lambda \approx 0$.
+* **Evolution:** If the gradient indicates utility, $\lambda$ grows (Synaptogenesis). If utility drops, $\lambda \to 0$ (Pruning) via Complexity Penalty.
+* This makes the *topology of the graph itself* differentiable.
 
-  - contextual feature alignment,
-  - multiple valid permutations per feature,
-  - expandable communication channels,
-  - robust multi-agent modularity.
-
-This preserves spline standardization while enabling diverse remappings.
+### 12.3 Positional Persistence (The Handshake)
+To prevent the loss of spatial/topological information during permutations, all data transmission includes a **Positional Embedding Pass-Through**.
+* Sender transmits `{ContentVectors, PositionalIDs}`.
+* Connector permutes the Content and Position together.
+* Receiver uses the PositionalIDs to recover the original spatial geometry if needed.
 
 ---
 
@@ -451,7 +402,7 @@ To maintain the principle of "Smooth Evolution," the system does not discretely 
 Protected elements include:
 
 - spline-standardized features,
-- multi-permutation Contact logic,
+- multi-permutation Contact logic (Dual-Axis),
 - attention-as-atomic-Core,
 - multi-regime optimization logic,
 - hierarchical virtual identity levels,
@@ -462,6 +413,7 @@ Protected elements include:
 - the complete logistical request/response,
 - internal rhythm-temporal error system,
 - differentiable aperture evolution (Dense-to-Conv),
-- and continuous stochastic evolution via spline flows.
+- continuous stochastic evolution via spline flows,
+- and differentiable synaptogenesis (Ghost Connections).
 
 This document unifies all architectural components under a single protected conceptual framework.
