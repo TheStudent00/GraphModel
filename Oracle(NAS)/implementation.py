@@ -10,7 +10,7 @@ import numpy as np
 
 
 # ============================================================
-# SECTION 1 — Core Data Structures and Utility Classes
+# SECTION 1 — Core Data Structures (Complexity & Impedance)
 # ============================================================
 
 class Complexity:
@@ -32,6 +32,34 @@ class Complexity:
         return Complexity(self.space_tokens, self.time_tokens)
 
 
+class ImpedanceCurve:
+    """
+    Defines the cost of a connection based on Hierarchical Distance.
+    Uses a Monotone Spline to allow the 'shape' of the penalty to be learned.
+    """
+    def __init__(self, max_distance: int = 33) -> None:
+        self.max_distance = max_distance
+        
+        # Learnable Spline Knots for the Cost Function
+        # Init: "Bathtub" shape. 
+        # dist <= 1 -> cost ~ 0 (Neighbors are free)
+        # dist > 1 -> cost grows rapidly
+        self.cost_knots = np.linspace(0, 10, num=8) 
+        
+    def get_cost(self, sender_level: int, receiver_level: int) -> float:
+        distance = abs(sender_level - receiver_level)
+        
+        # 1. Apply Flat-Bottom Constraint (Lower bound curvature ~ 0 for neighbors)
+        if distance <= 1:
+            return 0.001 
+            
+        # 2. Spline Evaluation for Distant Connections
+        normalized_dist = min(distance, self.max_distance) / self.max_distance
+        cost = normalized_dist ** 2 * 10.0 # Quadratic init
+        
+        return float(cost)
+
+
 # ============================================================
 # SECTION 2 — Spline Feature Canonicalization
 # ============================================================
@@ -39,15 +67,7 @@ class Complexity:
 class SplineFeature:
     """
     Canonicalized feature representation.
-
-    Pipeline:
-    - Receive a raw feature vector x.
-    - Sort x to obtain a monotone curve.
-    - Fit monotone spline parameters to the sorted curve.
-    - Map into an embedding via learned parameters.
-
-    This class is a conceptual placeholder: the actual spline fitting
-    and evaluation logic will live here.
+    Sorts input x -> Fits Monotone Spline -> Projects to Embedding.
     """
 
     def __init__(self, embedding_dim: int) -> None:
@@ -55,27 +75,16 @@ class SplineFeature:
         self.spline_params: Optional[np.ndarray] = None
 
     def canonicalize(self, x: np.ndarray) -> np.ndarray:
-        """
-        Sort x and return the monotone version.
-        """
         sorted_x: np.ndarray = np.sort(x)
         return sorted_x
 
     def fit_spline(self, sorted_x: np.ndarray) -> None:
-        """
-        Fit monotone spline parameters to the sorted vector.
-        Placeholder: just a moving average update.
-        """
         if self.spline_params is None:
             self.spline_params = np.copy(sorted_x)
         else:
             self.spline_params = 0.5 * self.spline_params + 0.5 * sorted_x
 
     def to_embedding(self, sorted_x: np.ndarray) -> np.ndarray:
-        """
-        Projects the spline representation into an embedding vector.
-        Placeholder: currently returns a simple projection.
-        """
         if self.spline_params is None:
             self.fit_spline(sorted_x)
 
@@ -91,7 +100,7 @@ class SplineFeature:
 
 
 # ============================================================
-# SECTION 2b — Spectral Permutation Families (Nyquist Basis)
+# SECTION 3 — Spectral Geometry & Stochasticity
 # ============================================================
 
 class SpectralPermutationFamily:
@@ -103,32 +112,21 @@ class SpectralPermutationFamily:
     def __init__(self, num_fixed: int = 8, num_relative: int = 4) -> None:
         self.num_fixed = num_fixed
         self.num_relative = num_relative
-        
-        # Learnable coefficients for Fixed and Relative bands
-        # Initialized near zero to start close to Identity/Monotone
         self.fixed_coeffs = np.random.randn(num_fixed) * 0.001
         self.relative_coeffs = np.random.randn(num_relative) * 0.001
-        
-        # Bias term implies "Identity" sort (t) as the default starting state
         self.bias_strength = 1.0
 
     def _get_basis_val(self, t: float, n: int) -> float:
-        """
-        Compute f(t) using the Hybrid Basis with Nyquist constraints.
-        """
         val = 0.0
         val += t * self.bias_strength
-
         # Fixed Frequencies
         for k in range(1, self.num_fixed + 1):
             freq = k * 0.5 
             if freq > (n / 2.0): break 
             val += self.fixed_coeffs[k-1] * np.sin(k * np.pi * t)
-
         # Relative Frequencies
         for k in range(1, self.num_relative + 1):
             val += self.relative_coeffs[k-1] * np.sin(k * n * np.pi * t)
-            
         return val
 
     def get_scores(self, length: int) -> np.ndarray:
@@ -140,33 +138,46 @@ class SpectralPermutationFamily:
         return scores
 
     def forward(self, x: np.ndarray) -> np.ndarray:
-        """
-        Apply permutation to input vector/list x using Differentiable SoftSort.
-        """
         n = len(x)
         scores = self.get_scores(n)
-        perm_indices = np.argsort(scores) # Replace with SoftSort in training
-        
+        perm_indices = np.argsort(scores) 
         permuted_x = np.zeros_like(x)
         for new_i, old_i in enumerate(perm_indices):
             permuted_x[new_i] = x[old_i]
         return permuted_x
 
 
+class SplineStochasticHead:
+    """
+    Manages stochastic outputs via Inverse Transform Sampling on Monotone Splines.
+    """
+    def __init__(self, embedding_dim: int, num_bins: int = 8) -> None:
+        self.embedding_dim = embedding_dim
+        self.knot_logits = np.zeros((embedding_dim, num_bins)) 
+        self.knot_logits[:, num_bins // 2] = 5.0 
+        self.knot_logits[:, :] -= 2.0 
+
+    def forward(self, x: np.ndarray) -> np.ndarray:
+        # Placeholder for Inverse Spline Sampling
+        batch_size = x.shape[0]
+        epsilon = np.random.uniform(0, 1, size=(batch_size, self.embedding_dim))
+        relaxation = np.std(self.knot_logits) 
+        y_noise = (epsilon - 0.5) * relaxation * 0.1
+        return x + y_noise
+
+
 # ============================================================
-# SECTION 3 — Q/K/V Atomic Attention Layer (Soft Aperture)
+# SECTION 4 — Layers & Routing (QKV & Connector)
 # ============================================================
 
 class QKVLayer:
     """
-    Atomic attention structure for a Core.
-    Now supports Differentiable Gaussian Aperture for soft windowing.
+    Atomic attention structure. Supports Differentiable Gaussian Aperture.
     """
 
     def __init__(self, input_dim: int, output_dim: int) -> None:
         self.input_dim: int = input_dim
         self.output_dim: int = output_dim
-
         self.matrix_q: np.ndarray = np.random.randn(input_dim, output_dim) * 0.01
         self.matrix_k: np.ndarray = np.random.randn(input_dim, output_dim) * 0.01
         self.matrix_v: np.ndarray = np.random.randn(input_dim, output_dim) * 0.01
@@ -189,9 +200,9 @@ class QKVLayer:
             gaussian_bias = -(dist_matrix**2) / (2 * (aperture_sigma**2) + 1e-6)
             scores = scores + gaussian_bias
 
+        # Softmax
         for row_index in range(scores.shape[0]):
             scores[row_index] -= float(np.max(scores[row_index]))
-
         weights: np.ndarray = np.exp(scores)
         for row_index in range(weights.shape[0]):
             weights[row_index] /= (float(np.sum(weights[row_index])) + 1e-9)
@@ -200,33 +211,6 @@ class QKVLayer:
         return output
 
 
-# ============================================================
-# SECTION 4b — Spline Stochastic Head (Continuous Evolution)
-# ============================================================
-
-class SplineStochasticHead:
-    """
-    Manages stochastic outputs via Inverse Transform Sampling on Monotone Splines.
-    """
-    def __init__(self, embedding_dim: int, num_bins: int = 8) -> None:
-        self.embedding_dim = embedding_dim
-        self.knot_logits = np.zeros((embedding_dim, num_bins)) 
-        self.knot_logits[:, num_bins // 2] = 5.0 
-        self.knot_logits[:, :] -= 2.0 
-
-    def forward(self, x: np.ndarray) -> np.ndarray:
-        # Placeholder for Inverse Spline Sampling
-        batch_size = x.shape[0]
-        epsilon = np.random.uniform(0, 1, size=(batch_size, self.embedding_dim))
-        relaxation = np.std(self.knot_logits) 
-        y_noise = (epsilon - 0.5) * relaxation * 0.1
-        return x + y_noise
-
-
-# ============================================================
-# SECTION 5 — Connector (The Learnable Patch Cable)
-# ============================================================
-
 class Connector:
     """
     Managed by the Receiver Module.
@@ -234,31 +218,21 @@ class Connector:
     """
     def __init__(self, embedding_dim: int) -> None:
         self.embedding_dim = embedding_dim
-        
         # 1. Row Permutation (Topological / Sequence)
         self.row_perm = SpectralPermutationFamily()
-        
         # 2. Column Permutation (Semantic / Feature)
         self.col_perm = SpectralPermutationFamily()
-        
-        # 3. Ghost Gating (Synaptogenesis)
-        # Starts near zero. Grows if connection is useful.
+        # 3. Ghost Gating
         self.connection_strength = 0.001 
 
     def process_message(self, 
                         content: np.ndarray, 
                         position: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-        """
-        Receives Bag of Vectors {Content, Position}.
-        Applies alignment and gating.
-        """
-        # A. Apply Row Permutation (Sort the Sequence)
-        # Note: Position follows Content to maintain "Receipt"
+        # A. Apply Row Permutation (Sort Sequence)
         aligned_content = self.row_perm.forward(content)
         aligned_position = self.row_perm.forward(position)
         
         # B. Apply Column Permutation (Shuffle Features)
-        # Transpose -> Permute -> Transpose
         aligned_content_T = aligned_content.T
         aligned_content_T = self.col_perm.forward(aligned_content_T)
         aligned_content = aligned_content_T.T
@@ -270,7 +244,7 @@ class Connector:
 
 
 # ============================================================
-# SECTION 4 — Core
+# SECTION 5 — The Core
 # ============================================================
 
 class Core:
@@ -283,7 +257,6 @@ class Core:
         self.embedding_dim = embedding_dim
 
         self.base_feature = SplineFeature(embedding_dim=embedding_dim)
-        # Internal permutation for local processing (Convolution)
         self.internal_perm = SpectralPermutationFamily() 
         self.parallel_layers = []
         self.downstream_layers = []
@@ -298,16 +271,16 @@ class Core:
         """
         Process Input + Position.
         """
-        # Canonicalize
+        # 1. Canonicalize
         sorted_x = self.base_feature.canonicalize(x)
         embedding = self.base_feature.to_embedding(sorted_x)
         
-        # Internal Topology Sort (Convolution prep)
+        # 2. Internal Topology Sort (Convolution prep)
         embedding = self.internal_perm.forward(embedding)
         if pos is not None:
-            pos = self.internal_perm.forward(pos) # Position follows data
+            pos = self.internal_perm.forward(pos)
 
-        # Attention / Conv
+        # 3. Attention / Conv (Soft Aperture)
         current_sigma = self.get_aperture_sigma()
         if self.parallel_layers:
             token_batch = embedding[None, :]
@@ -318,7 +291,7 @@ class Core:
         for layer in self.downstream_layers:
             embedding = layer(embedding)
 
-        # Stochastic Output
+        # 4. Stochastic Output
         embedding = self.stochastic_head.forward(embedding)
         embedding = self.output_scale * embedding
         
@@ -326,12 +299,44 @@ class Core:
 
 
 # ============================================================
-# SECTION 6 — Module and MindsEye (Updated with Connectors)
+# SECTION 6 — Memory & Logistics
+# ============================================================
+
+class Memory:
+    def __init__(self) -> None:
+        self.recent = []
+        self.complexity = Complexity()
+    def store(self, embedding: np.ndarray) -> None:
+        self.recent.append(embedding)
+
+class Logistics:
+    def __init__(self) -> None:
+        self.request_queue = []
+        self.current_tick = 0
+        self.temporal_loss_accumulated = 0.0
+
+    def tick(self) -> None:
+        self.current_tick += 1
+
+    def enqueue(self, source: str, dest: str, content: Any, pos: Any) -> None:
+        self.request_queue.append({
+            "source": source, "dest": dest, "content": content, "pos": pos,
+            "tick": self.current_tick
+        })
+    
+    def get_temporal_loss(self) -> float:
+        loss = self.temporal_loss_accumulated
+        self.temporal_loss_accumulated = 0.0
+        return loss
+
+
+# ============================================================
+# SECTION 7 — Module and MindsEye
 # ============================================================
 
 class Module:
     """
-    Adaptive agent. Now aware of its Hierarchical Level.
+    Adaptive agent. Now aware of its Hierarchical Level and owns Connectors.
     """
     def __init__(self, module_id: str, input_dim: int, embedding_dim: int, level: int = 0) -> None:
         self.level = level # Hierarchical Address (0-33)
@@ -341,8 +346,7 @@ class Module:
         self.state_core = Core(input_dim, embedding_dim)
         self.memory = Memory()
         
-        # NEW: Input Connectors (Receiver-Centric Routing)
-        # Map: sender_id -> Connector
+        # Receiver-Centric Routing: Map[sender_id -> Connector]
         self.input_connectors: Dict[str, Connector] = {}
         
         self.complexity = Complexity()
@@ -357,11 +361,6 @@ class Module:
                             sender_id: str, 
                             content: np.ndarray, 
                             pos: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-        """
-        Entry point for messages.
-        1. Route through specific Connector.
-        2. Process via State Core.
-        """
         connector = self.ensure_connector(sender_id)
         
         # 1. Align and Gate
@@ -376,32 +375,52 @@ class Module:
         return Module(self.id + "_clone", 0, self.embedding_dim)
 
 
-# ============================================================
-# SECTION 5 — Memory & Logistics (Standard)
-# ============================================================
+class MindsEye(Module):
+    """
+    Meta-learning / architecture oversight module.
+    """
+    def __init__(self, module_id: str = "minds_eye",
+                 input_dim: int = 128, embedding_dim: int = 256) -> None:
+        super().__init__(module_id, input_dim, embedding_dim)
+        self.architecture_memory: Memory = Memory()
 
-class Memory:
-    def __init__(self) -> None:
-        self.recent = []
-        self.complexity = Complexity()
-    def store(self, embedding: np.ndarray) -> None:
-        self.recent.append(embedding)
-
-class Logistics:
-    def __init__(self) -> None:
-        self.request_queue = []
-        self.current_tick = 0
-    def tick(self) -> None:
-        self.current_tick += 1
-    def enqueue(self, source: str, dest: str, content: Any, pos: Any) -> None:
-        self.request_queue.append({
-            "source": source, "dest": dest, "content": content, "pos": pos,
-            "tick": self.current_tick
-        })
+    def update_architecture(self, graph_state: Dict[str, Any]) -> None:
+        # Placeholder for meta-learning logic
+        pass
 
 
 # ============================================================
-# SECTION 8 — Symmetry Breaker & NAS (Updated)
+# SECTION 8 — Hierarchy and Interfaces
+# ============================================================
+
+class HierarchyManager:
+    def __init__(self, num_levels: int = 33) -> None:
+        self.num_levels: int = num_levels
+        self.level_states: List[str] = ["identity"] * num_levels
+
+    def activate_level(self, level_index: int) -> None:
+        if 0 <= level_index < self.num_levels:
+            self.level_states[level_index] = "active"
+
+
+class Interface:
+    def __init__(self, mode: str = "input", embedding_dim: int = 256) -> None:
+        self.mode: str = mode
+        self.embedding_dim: int = embedding_dim
+
+    def encode(self, x: np.ndarray) -> np.ndarray:
+        result: np.ndarray = np.zeros(self.embedding_dim, dtype=float)
+        limit: int = min(self.embedding_dim, x.size)
+        for index in range(limit):
+            result[index] = float(x[index])
+        return result
+
+    def decode(self, y: np.ndarray) -> np.ndarray:
+        return y
+
+
+# ============================================================
+# SECTION 9 — Optimization (Symmetry & NAS)
 # ============================================================
 
 class SymmetryBreaker:
@@ -428,10 +447,12 @@ class NASController:
         self.checkpoints[tick] = state
     def revert(self) -> Any:
         return self.checkpoints.get(max(self.checkpoints.keys(), default=0))
+    def explore(self, module: Module) -> List[Module]:
+        return [module.clone(), module.clone()] # Simplified
 
 
 # ============================================================
-# SECTION 9 — GraphModel
+# SECTION 10 — GraphModel Container
 # ============================================================
 
 class GraphModel:
@@ -439,49 +460,13 @@ class GraphModel:
         self.modules = [Module("root", input_dim, embedding_dim)]
         self.logistics = Logistics()
         self.nas = NASController()
+        self.impedance = ImpedanceCurve()
 
     def forward(self, x: np.ndarray) -> Any:
         self.logistics.tick()
         # Mock Routing
         root = self.modules[0]
-        # Generate initial positional embedding (e.g. linear index)
         initial_pos = np.arange(len(x)).astype(float)
         
         out, _ = root.receive_and_process("input", x, initial_pos)
         return out
-
-# ============================================================
-# SECTION 11 — Complexity & Impedance (Updated)
-# ============================================================
-
-class ImpedanceCurve:
-    """
-    Defines the cost of a connection based on Hierarchical Distance.
-    Uses a Monotone Spline to allow the 'shape' of the penalty to be learned.
-    """
-    def __init__(self, max_distance: int = 33) -> None:
-        self.max_distance = max_distance
-        
-        # Learnable Spline Knots for the Cost Function
-        # x-axis: Distance (0 to 33)
-        # y-axis: Cost Token penalty
-        # Init: "Bathtub" shape. 
-        # dist=0 or 1 -> cost=0 (Neighbors are free)
-        # dist>2 -> cost grows rapidly
-        self.cost_knots = np.linspace(0, 10, num=8) # Placeholder for spline params
-        
-    def get_cost(self, sender_level: int, receiver_level: int) -> float:
-        distance = abs(sender_level - receiver_level)
-        
-        # 1. Apply Flat-Bottom Constraint (Lower bound curvature ~ 0 for neighbors)
-        if distance <= 1:
-            return 0.001 # Nominal cost to prevent infinite loops, but effectively free
-            
-        # 2. Spline Evaluation for Distant Connections
-        # (Placeholder for spline interpolation logic)
-        # Allows model to learn that "Distance 5 is expensive" but "Distance 30 is cheap"
-        # if that serves the architecture.
-        normalized_dist = min(distance, self.max_distance) / self.max_distance
-        cost = normalized_dist ** 2 * 10.0 # Quadratic init (Deep Well)
-        
-        return float(cost)
