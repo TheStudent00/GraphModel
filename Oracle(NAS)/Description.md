@@ -318,6 +318,14 @@ To prevent the loss of spatial/topological information during permutations, all 
 * Connector permutes the Content and Position together.
 * Receiver uses the PositionalIDs to recover the original spatial geometry if needed.
 
+### 12.4 Learnable Hierarchical Impedance (Topology Cost)
+To organize the graph into a meaningful abstraction ladder without forbidding necessary shortcuts, the Complexity Subsystem imposes a tax on connections based on **Hierarchical Distance** ($\Delta L = |L_{sender} - L_{receiver}|$).
+
+* **The Impedance Curve:** A learnable **Monotone Spline** defines the cost function $C(\Delta L)$.
+* **Initialization (The Natural Prior):** The curve is initialized as a "Potential Well" (Bathtub shape).
+    * Near $\Delta L \approx 1$ (Neighbors): Cost $\approx 0$. Curvature is minimal. This encourages standard bottom-up/top-down flow.
+    * As $\Delta L$ increases (Skips): Cost rises sharply.
+* **Evolution:** The NAS can modify the control points of this spline. If a "Teleportation" (Level 1 $\to$ 33) is critical for utility, the system bends the cost curve to make that specific distance affordable, effectively "warping" the internal space of the model.
 ---
 
 # 13. Symmetry Breaking in Cloned Modules
