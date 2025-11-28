@@ -331,9 +331,10 @@ class Core:
 
 class Module:
     """
-    Adaptive agent. Now owns Connectors for inputs.
+    Adaptive agent. Now aware of its Hierarchical Level.
     """
-    def __init__(self, module_id: str, input_dim: int, embedding_dim: int) -> None:
+    def __init__(self, module_id: str, input_dim: int, embedding_dim: int, level: int = 0) -> None:
+        self.level = level # Hierarchical Address (0-33)
         self.id = module_id
         self.embedding_dim = embedding_dim
 
@@ -448,3 +449,39 @@ class GraphModel:
         
         out, _ = root.receive_and_process("input", x, initial_pos)
         return out
+
+# ============================================================
+# SECTION 11 — Complexity & Impedance (Updated)
+# ============================================================
+
+class ImpedanceCurve:
+    """
+    Defines the cost of a connection based on Hierarchical Distance.
+    Uses a Monotone Spline to allow the 'shape' of the penalty to be learned.
+    """
+    def __init__(self, max_distance: int = 33) -> None:
+        self.max_distance = max_distance
+        
+        # Learnable Spline Knots for the Cost Function
+        # x-axis: Distance (0 to 33)
+        # y-axis: Cost Token penalty
+        # Init: "Bathtub" shape. 
+        # dist=0 or 1 -> cost=0 (Neighbors are free)
+        # dist>2 -> cost grows rapidly
+        self.cost_knots = np.linspace(0, 10, num=8) # Placeholder for spline params
+        
+    def get_cost(self, sender_level: int, receiver_level: int) -> float:
+        distance = abs(sender_level - receiver_level)
+        
+        # 1. Apply Flat-Bottom Constraint (Lower bound curvature ~ 0 for neighbors)
+        if distance <= 1:
+            return 0.001 # Nominal cost to prevent infinite loops, but effectively free
+            
+        # 2. Spline Evaluation for Distant Connections
+        # (Placeholder for spline interpolation logic)
+        # Allows model to learn that "Distance 5 is expensive" but "Distance 30 is cheap"
+        # if that serves the architecture.
+        normalized_dist = min(distance, self.max_distance) / self.max_distance
+        cost = normalized_dist ** 2 * 10.0 # Quadratic init (Deep Well)
+        
+        return float(cost)
