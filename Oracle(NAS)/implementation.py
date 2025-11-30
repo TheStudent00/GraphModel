@@ -15,8 +15,8 @@ import numpy as np
 
 class Complexity:
     """
-    Tracks estimated space and time complexity for a component.
-    Values are abstract "tokens" rather than raw FLOPs or bytes.
+    Tracks estimated space and time complexity.
+    Sender pays Time. Receiver pays Space.
     """
 
     def __init__(self, space_tokens: float = 0.0, time_tokens: float = 0.0) -> None:
@@ -39,64 +39,40 @@ class ImpedanceCurve:
     """
     def __init__(self, max_distance: int = 33) -> None:
         self.max_distance = max_distance
-        
-        # Learnable Spline Knots for the Cost Function
-        # Init: "Bathtub" shape. 
-        # dist <= 1 -> cost ~ 0 (Neighbors are free)
-        # dist > 1 -> cost grows rapidly
+        # Init: "Bathtub" shape. Neighbors free, Distant expensive.
         self.cost_knots = np.linspace(0, 10, num=8) 
         
     def get_cost(self, sender_level: int, receiver_level: int) -> float:
         distance = abs(sender_level - receiver_level)
-        
         # 1. Apply Flat-Bottom Constraint (Lower bound curvature ~ 0 for neighbors)
         if distance <= 1:
             return 0.001 
-            
         # 2. Spline Evaluation for Distant Connections
         normalized_dist = min(distance, self.max_distance) / self.max_distance
-        cost = normalized_dist ** 2 * 10.0 # Quadratic init
-        
+        cost = normalized_dist ** 2 * 10.0 
         return float(cost)
 
 
 # ============================================================
-# SECTION 2 — Spline Feature Canonicalization
+# SECTION 2 — Spline Feature Factorization
 # ============================================================
 
-class SplineFeature:
+class SplineBank:
     """
-    Canonicalized feature representation.
-    Sorts input x -> Fits Monotone Spline -> Projects to Embedding.
+    A bank of Monotone Splines representing fundamental signal shapes.
+    (e.g., Edges, Bells, Gradients).
     """
+    def __init__(self, num_splines: int, embedding_dim: int) -> None:
+        self.num_splines = num_splines
+        # Stores the parameters for N distinct spline shapes
+        self.spline_params = np.zeros((num_splines, embedding_dim))
 
-    def __init__(self, embedding_dim: int) -> None:
-        self.embedding_dim: int = embedding_dim
-        self.spline_params: Optional[np.ndarray] = None
-
-    def canonicalize(self, x: np.ndarray) -> np.ndarray:
-        sorted_x: np.ndarray = np.sort(x)
-        return sorted_x
-
-    def fit_spline(self, sorted_x: np.ndarray) -> None:
-        if self.spline_params is None:
-            self.spline_params = np.copy(sorted_x)
-        else:
-            self.spline_params = 0.5 * self.spline_params + 0.5 * sorted_x
-
-    def to_embedding(self, sorted_x: np.ndarray) -> np.ndarray:
-        if self.spline_params is None:
-            self.fit_spline(sorted_x)
-
-        embedding: np.ndarray = np.zeros(self.embedding_dim)
-        if self.spline_params is None:
-            return embedding
-
-        max_length: int = min(self.embedding_dim, len(self.spline_params))
-        for index in range(max_length):
-            embedding[index] = float(self.spline_params[index])
-
-        return embedding
+    def get_spline_embedding(self, x: np.ndarray, spline_idx: int) -> np.ndarray:
+        # Sort input to get monotonic signal
+        sorted_x = np.sort(x)
+        # Apply the specific spline transformation (Placeholder)
+        # In reality: apply spline[spline_idx] to sorted_x
+        return sorted_x # Placeholder
 
 
 # ============================================================
@@ -106,7 +82,7 @@ class SplineFeature:
 class SpectralPermutationFamily:
     """
     Continuous parameterization of permutations using a Hybrid Fourier Basis.
-    Used for both Topological Sorting (Rows) and Semantic Sorting (Cols).
+    Used for Feature Orientation (in Core) and Alignment (in Connector).
     """
 
     def __init__(self, num_fixed: int = 8, num_relative: int = 4) -> None:
@@ -119,12 +95,10 @@ class SpectralPermutationFamily:
     def _get_basis_val(self, t: float, n: int) -> float:
         val = 0.0
         val += t * self.bias_strength
-        # Fixed Frequencies
         for k in range(1, self.num_fixed + 1):
             freq = k * 0.5 
             if freq > (n / 2.0): break 
             val += self.fixed_coeffs[k-1] * np.sin(k * np.pi * t)
-        # Relative Frequencies
         for k in range(1, self.num_relative + 1):
             val += self.relative_coeffs[k-1] * np.sin(k * n * np.pi * t)
         return val
@@ -153,12 +127,12 @@ class SplineStochasticHead:
     """
     def __init__(self, embedding_dim: int, num_bins: int = 8) -> None:
         self.embedding_dim = embedding_dim
+        # Init to Heaviside Step (Deterministic Identity)
         self.knot_logits = np.zeros((embedding_dim, num_bins)) 
         self.knot_logits[:, num_bins // 2] = 5.0 
         self.knot_logits[:, :] -= 2.0 
 
     def forward(self, x: np.ndarray) -> np.ndarray:
-        # Placeholder for Inverse Spline Sampling
         batch_size = x.shape[0]
         epsilon = np.random.uniform(0, 1, size=(batch_size, self.embedding_dim))
         relaxation = np.std(self.knot_logits) 
@@ -174,17 +148,15 @@ class QKVLayer:
     """
     Atomic attention structure. Supports Differentiable Gaussian Aperture.
     """
-
     def __init__(self, input_dim: int, output_dim: int) -> None:
-        self.input_dim: int = input_dim
-        self.output_dim: int = output_dim
+        self.input_dim = input_dim
+        self.output_dim = output_dim
         self.matrix_q: np.ndarray = np.random.randn(input_dim, output_dim) * 0.01
         self.matrix_k: np.ndarray = np.random.randn(input_dim, output_dim) * 0.01
         self.matrix_v: np.ndarray = np.random.randn(input_dim, output_dim) * 0.01
 
     def forward(self, x: np.ndarray, aperture_sigma: Optional[float] = None) -> np.ndarray:
         if x.ndim == 1: x = x[None, :]
-
         q_projected: np.ndarray = x @ self.matrix_q
         k_projected: np.ndarray = x @ self.matrix_k
         v_projected: np.ndarray = x @ self.matrix_v
@@ -200,7 +172,6 @@ class QKVLayer:
             gaussian_bias = -(dist_matrix**2) / (2 * (aperture_sigma**2) + 1e-6)
             scores = scores + gaussian_bias
 
-        # Softmax
         for row_index in range(scores.shape[0]):
             scores[row_index] -= float(np.max(scores[row_index]))
         weights: np.ndarray = np.exp(scores)
@@ -215,6 +186,7 @@ class Connector:
     """
     Managed by the Receiver Module.
     Handles the connection to a specific Sender Module via Dual-Axis Permutation.
+    Receiver pays Space complexity for this structure.
     """
     def __init__(self, embedding_dim: int) -> None:
         self.embedding_dim = embedding_dim
@@ -244,20 +216,24 @@ class Connector:
 
 
 # ============================================================
-# SECTION 5 — The Core
+# SECTION 5 — The Core (Factorized)
 # ============================================================
 
 class Core:
     """
-    Smallest compute agent. Now mostly for internal processing.
-    Routing is handled by the enclosing Module's Connectors.
+    Smallest compute agent.
+    Factorized: Separates Spline Shapes (Content) from Permutations (Context).
     """
     def __init__(self, input_dim: int, embedding_dim: int) -> None:
         self.input_dim = input_dim
         self.embedding_dim = embedding_dim
 
-        self.base_feature = SplineFeature(embedding_dim=embedding_dim)
-        self.internal_perm = SpectralPermutationFamily() 
+        # Factorized Feature System
+        # 1. The Physics (Shared Spline Shapes)
+        self.spline_bank = SplineBank(num_splines=16, embedding_dim=embedding_dim)
+        # 2. The Geometry (Permutations)
+        self.perm_bank: List[SpectralPermutationFamily] = [SpectralPermutationFamily() for _ in range(16)]
+        
         self.parallel_layers = []
         self.downstream_layers = []
         self.output_scale = 1.0
@@ -271,14 +247,15 @@ class Core:
         """
         Process Input + Position.
         """
-        # 1. Canonicalize
-        sorted_x = self.base_feature.canonicalize(x)
-        embedding = self.base_feature.to_embedding(sorted_x)
+        # 1. Feature Factorization Phase
+        # Select a Spline and Permutation (Simplified: Use index 0)
+        # In full version: Mixing/Gating multiple Spline/Perm pairs
+        embedding = self.spline_bank.get_spline_embedding(x, 0)
         
         # 2. Internal Topology Sort (Convolution prep)
-        embedding = self.internal_perm.forward(embedding)
+        embedding = self.perm_bank[0].forward(embedding)
         if pos is not None:
-            pos = self.internal_perm.forward(pos)
+            pos = self.perm_bank[0].forward(pos)
 
         # 3. Attention / Conv (Soft Aperture)
         current_sigma = self.get_aperture_sigma()
@@ -319,6 +296,8 @@ class Logistics:
         self.current_tick += 1
 
     def enqueue(self, source: str, dest: str, content: Any, pos: Any) -> None:
+        # SENDER PAYS TIME
+        # TODO: Calculate time cost based on payload size
         self.request_queue.append({
             "source": source, "dest": dest, "content": content, "pos": pos,
             "tick": self.current_tick
@@ -336,10 +315,10 @@ class Logistics:
 
 class Module:
     """
-    Adaptive agent. Now aware of its Hierarchical Level and owns Connectors.
+    Adaptive agent. Receiver-Centric ownership of connectors.
     """
     def __init__(self, module_id: str, input_dim: int, embedding_dim: int, level: int = 0) -> None:
-        self.level = level # Hierarchical Address (0-33)
+        self.level = level 
         self.id = module_id
         self.embedding_dim = embedding_dim
 
@@ -354,7 +333,10 @@ class Module:
 
     def ensure_connector(self, sender_id: str) -> Connector:
         if sender_id not in self.input_connectors:
-            self.input_connectors[sender_id] = Connector(self.embedding_dim)
+            # RECEIVER PAYS SPACE
+            new_connector = Connector(self.embedding_dim)
+            self.complexity.space_tokens += 10 # Placeholder cost
+            self.input_connectors[sender_id] = new_connector
         return self.input_connectors[sender_id]
 
     def receive_and_process(self, 
@@ -362,13 +344,8 @@ class Module:
                             content: np.ndarray, 
                             pos: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         connector = self.ensure_connector(sender_id)
-        
-        # 1. Align and Gate
         aligned_content, aligned_pos = connector.process_message(content, pos)
-        
-        # 2. Process (State Core)
         output_content, output_pos = self.state_core.forward(aligned_content, aligned_pos)
-        
         return output_content, output_pos
         
     def clone(self) -> "Module":
@@ -385,7 +362,7 @@ class MindsEye(Module):
         self.architecture_memory: Memory = Memory()
 
     def update_architecture(self, graph_state: Dict[str, Any]) -> None:
-        # Placeholder for meta-learning logic
+        # Optimization Targets: Loss Velocity, Complexity Ratio, Gradient Variance
         pass
 
 
@@ -432,8 +409,6 @@ class SymmetryBreaker:
         return tensor + self.noise_scale * np.random.randn(*tensor.shape)
 
     def apply(self, module: Module) -> Module:
-        # Perturb Cores
-        # Perturb Connectors (Ghost Connections)
         for connector in module.input_connectors.values():
             connector.row_perm.fixed_coeffs = self.perturb_tensor(connector.row_perm.fixed_coeffs)
             connector.col_perm.fixed_coeffs = self.perturb_tensor(connector.col_perm.fixed_coeffs)
@@ -448,7 +423,7 @@ class NASController:
     def revert(self) -> Any:
         return self.checkpoints.get(max(self.checkpoints.keys(), default=0))
     def explore(self, module: Module) -> List[Module]:
-        return [module.clone(), module.clone()] # Simplified
+        return [module.clone(), module.clone()] 
 
 
 # ============================================================
@@ -464,9 +439,7 @@ class GraphModel:
 
     def forward(self, x: np.ndarray) -> Any:
         self.logistics.tick()
-        # Mock Routing
         root = self.modules[0]
         initial_pos = np.arange(len(x)).astype(float)
-        
         out, _ = root.receive_and_process("input", x, initial_pos)
         return out
