@@ -226,9 +226,9 @@ NAS may clone a Module when its workload or representational pressure grows too 
 ### 9.2 Overlap (before replacement)  
 Original approach: a wrapper that averages outputs:
 
-\[
+$$\[
 \frac{1}{2} M0 + \frac{1}{2} M1
-\]
+\]$$
 
 Preserves downstream invariants.
 
