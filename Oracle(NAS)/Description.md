@@ -12,6 +12,7 @@ This description asserts IP protection over:
 
 - the monotone-spline feature standardization and factorization process,
 - the Core/Module/MindsEye structural hierarchy,
+- the Bicameral (Hemispheric) Autopoietic Architecture,
 - attention-as-atomic-primitive routing embedded into modular computation,
 - the 33-level nascent abstraction hierarchy,
 - dynamic architecture search (NAS) with cloning, merging, and complexity gradients,
@@ -58,7 +59,7 @@ A Core is the atomic computational operator. It includes:
 - **Parallel Q/K/V feature layers** for attention-based routing and transformation.
 - **Contextual mixing** via softmax(QK)·V.
 - **Expandable parallel and downstream feature layers** through NAS.
-- **Bayesian Potential:** Every Core possesses the dormant capability to operate stochastically via Spline Flows.
+- **Bayesian Potential:** Every Core possesses the dormant capability to operate stochastically via Spline Flows (see Section 16).
 
 A Core is an embedded expert capable of both computation and communication.
 
@@ -82,19 +83,12 @@ A Module is a container for multiple Cores:
 
 Modules behave as adaptive, semi-autonomous computational agents.
 
-## 3.3 MindsEye (Meta-Learner)
+## 3.3 MindsEye (The Executive Module)
 
-MindsEye monitors the entire Graph:
-
-- adjusts optimization regimes,
-- triggers architectural exploration,
-- allocates complexity tokens,
-- evaluates module utility,
-- manages cloning and merging,
-- routes learning signals,
-- and coordinates global structural updates.
-
-It is not a controller; it is an evolving meta-optimizer embedded within the system.
+MindsEye is not an external controller but a **High-Connectivity Module** located within the **Reflective Hemisphere** (see Section 18).
+* It interacts with the rest of the graph via standard Connectors.
+* Its "Action Space" includes modifying the hyperparameters (e.g., Aperture $\sigma$, Connection $\lambda$) of other modules.
+* This embeds the "Governor" inside the "Government," ensuring that alignment/safety mechanisms are subject to the system's own complexity and temporal constraints.
 
 ## 3.4 Continuous Differentiable Aperture (Smooth Evolution)
 
@@ -397,7 +391,19 @@ To maintain the principle of "Smooth Evolution," the system does not discretely 
 
 ---
 
-# 17. IP Coverage Summary
+# 18. Autopoiesis and Bicameral Topology
+
+To ensure the Graph Model functions as a self-contained, self-regulating entity (Autopoiesis), the modules are topologically organized into two hemispheres:
+
+1.  **Hemisphere A (Active):** Contains modules responsible for Inference, Perception, Motor Control, and Logistics. It operates in "Real-Time" with read-only architecture during execution.
+2.  **Hemisphere B (Reflective):** Contains the **MindsEye** and modules responsible for Simulation, Counterfactuals, and Architectural Planning. It operates in "Deep Time" and is responsible for cloning, pruning, and optimizing Hemisphere A.
+
+**The Hot-Swap Protocol:**
+Safety is maintained via redundancy. Hemisphere B simulates architectural changes. Only upon verification are these changes propagated to Hemisphere A (or the hemispheres swap roles). This allows the system to optimize itself without risk of catastrophic self-corruption ("bricking").
+
+---
+
+# 19. IP Coverage Summary
 
 Protected elements include:
 
@@ -414,6 +420,7 @@ Protected elements include:
 - internal rhythm-temporal error system,
 - differentiable aperture evolution (Dense-to-Conv),
 - continuous stochastic evolution via spline flows,
-- and differentiable synaptogenesis (Ghost Connections).
+- differentiable synaptogenesis (Ghost Connections),
+- and the Autopoietic/Bicameral topology for self-contained optimization.
 
 This document unifies all architectural components under a single protected conceptual framework.
