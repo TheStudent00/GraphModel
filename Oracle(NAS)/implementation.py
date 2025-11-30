@@ -5,7 +5,8 @@
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any, Tuple, Deque
+from collections import deque
 import numpy as np
 
 
@@ -18,7 +19,6 @@ class Complexity:
     Tracks estimated space and time complexity.
     Sender pays Time. Receiver pays Space.
     """
-
     def __init__(self, space_tokens: float = 0.0, time_tokens: float = 0.0) -> None:
         self.space_tokens: float = space_tokens
         self.time_tokens: float = time_tokens
@@ -39,15 +39,11 @@ class ImpedanceCurve:
     """
     def __init__(self, max_distance: int = 33) -> None:
         self.max_distance = max_distance
-        # Init: "Bathtub" shape. Neighbors free, Distant expensive.
         self.cost_knots = np.linspace(0, 10, num=8) 
         
     def get_cost(self, sender_level: int, receiver_level: int) -> float:
         distance = abs(sender_level - receiver_level)
-        # 1. Apply Flat-Bottom Constraint (Lower bound curvature ~ 0 for neighbors)
-        if distance <= 1:
-            return 0.001 
-        # 2. Spline Evaluation for Distant Connections
+        if distance <= 1: return 0.001 
         normalized_dist = min(distance, self.max_distance) / self.max_distance
         cost = normalized_dist ** 2 * 10.0 
         return float(cost)
@@ -60,17 +56,13 @@ class ImpedanceCurve:
 class SplineBank:
     """
     A bank of Monotone Splines representing fundamental signal shapes.
-    (e.g., Edges, Bells, Gradients).
     """
     def __init__(self, num_splines: int, embedding_dim: int) -> None:
         self.num_splines = num_splines
-        # Stores the parameters for N distinct spline shapes
         self.spline_params = np.zeros((num_splines, embedding_dim))
 
     def get_spline_embedding(self, x: np.ndarray, spline_idx: int) -> np.ndarray:
-        # Sort input to get monotonic signal
         sorted_x = np.sort(x)
-        # Apply the specific spline transformation (Placeholder)
         return sorted_x 
 
 
@@ -81,9 +73,7 @@ class SplineBank:
 class SpectralPermutationFamily:
     """
     Continuous parameterization of permutations using a Hybrid Fourier Basis.
-    Used for both Topological Sorting (Rows) and Semantic Sorting (Cols).
     """
-
     def __init__(self, num_fixed: int = 8, num_relative: int = 4) -> None:
         self.num_fixed = num_fixed
         self.num_relative = num_relative
@@ -122,7 +112,7 @@ class SpectralPermutationFamily:
 
 class SplineStochasticHead:
     """
-    Manages stochastic outputs via Inverse Transform Sampling on Monotone Splines.
+    Manages stochastic outputs via Inverse Transform Sampling.
     """
     def __init__(self, embedding_dim: int, num_bins: int = 8) -> None:
         self.embedding_dim = embedding_dim
@@ -154,6 +144,7 @@ class QKVLayer:
         self.matrix_v: np.ndarray = np.random.randn(input_dim, output_dim) * 0.01
 
     def forward(self, x: np.ndarray, aperture_sigma: Optional[float] = None) -> np.ndarray:
+        # Handles Temporal dimension (Batch=Time in buffer context)
         if x.ndim == 1: x = x[None, :]
         q_projected: np.ndarray = x @ self.matrix_q
         k_projected: np.ndarray = x @ self.matrix_k
@@ -162,7 +153,6 @@ class QKVLayer:
         scale: float = float(np.sqrt(self.output_dim))
         scores: np.ndarray = (q_projected @ k_projected.T) / scale
         
-        # Soft Convolution via Gaussian Bias
         if aperture_sigma is not None and aperture_sigma < 1e5:
             n = scores.shape[0]
             indices = np.arange(n)
@@ -183,55 +173,66 @@ class QKVLayer:
 class Connector:
     """
     Managed by the Receiver Module.
-    Handles the connection to a specific Sender Module via Dual-Axis Permutation.
-    Receiver pays Space complexity for this structure.
+    Handles connection to a specific Sender via Dual-Axis Permutation AND Temporal Buffering.
     """
-    def __init__(self, embedding_dim: int) -> None:
+    def __init__(self, embedding_dim: int, temporal_window: int = 1) -> None:
         self.embedding_dim = embedding_dim
-        # 1. Row Permutation (Topological / Sequence)
+        self.temporal_window = temporal_window
+        
+        # 1. Permutations (Alignment)
         self.row_perm = SpectralPermutationFamily()
-        # 2. Column Permutation (Semantic / Feature)
         self.col_perm = SpectralPermutationFamily()
+        
+        # 2. Temporal Buffer (The Aperture)
+        # Stores tuples of (content, position)
+        self.buffer: Deque = deque(maxlen=temporal_window)
+        
         # 3. Ghost Gating
         self.connection_strength = 0.001 
 
-    def process_message(self, 
-                        content: np.ndarray, 
-                        position: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-        # A. Apply Row Permutation (Sort Sequence)
-        aligned_content = self.row_perm.forward(content)
-        aligned_position = self.row_perm.forward(position)
+    def receive(self, content: np.ndarray, position: np.ndarray) -> None:
+        """Called by Logistics to drop a message into the mailbox."""
+        self.buffer.append((content, position))
+
+    def get_aligned_window(self) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Returns the aligned buffer as a Tensor for the Context Core.
+        Format: (Time_Steps, Embedding_Dim)
+        """
+        if not self.buffer:
+            return np.zeros((1, self.embedding_dim)), np.zeros((1)) # Empty
+
+        # Stack Buffer
+        contents = np.stack([b[0] for b in self.buffer])
+        positions = np.stack([b[1] for b in self.buffer])
         
-        # B. Apply Column Permutation (Shuffle Features)
+        # Dual-Axis Alignment applied to the whole window
+        # Row perm (Topology) sorts the sequence (if treating buffer as spatial)
+        # Col perm (Semantic) aligns features
+        aligned_content = self.row_perm.forward(contents)
+        aligned_positions = self.row_perm.forward(positions)
+        
         aligned_content_T = aligned_content.T
         aligned_content_T = self.col_perm.forward(aligned_content_T)
         aligned_content = aligned_content_T.T
         
-        # C. Apply Ghost Gating
-        gated_content = aligned_content * self.connection_strength
-        
-        return gated_content, aligned_position
+        return aligned_content * self.connection_strength, aligned_positions
 
 
 # ============================================================
-# SECTION 5 — The Core (Factorized)
+# SECTION 5 — The Core (Factorized & Universal)
 # ============================================================
 
 class Core:
     """
-    Smallest compute agent.
-    Factorized: Separates Spline Shapes (Content) from Permutations (Context).
+    Universal Core Class.
+    Instantiated as Context, State, or Service in the Module.
     """
     def __init__(self, input_dim: int, embedding_dim: int) -> None:
         self.input_dim = input_dim
         self.embedding_dim = embedding_dim
-
-        # Factorized Feature System
-        # 1. The Physics (Shared Spline Shapes)
         self.spline_bank = SplineBank(num_splines=16, embedding_dim=embedding_dim)
-        # 2. The Geometry (Permutations)
         self.perm_bank: List[SpectralPermutationFamily] = [SpectralPermutationFamily() for _ in range(16)]
-        
         self.parallel_layers = []
         self.downstream_layers = []
         self.output_scale = 1.0
@@ -241,16 +242,26 @@ class Core:
     def get_aperture_sigma(self) -> float:
         return np.log(1 + np.exp(self.aperture_logits))
 
-    def forward(self, x: np.ndarray, pos: Optional[np.ndarray] = None) -> Tuple[np.ndarray, Optional[np.ndarray]]:
-        # 1. Feature Factorization Phase
+    def forward(self, x: np.ndarray, secondary_input: Optional[np.ndarray] = None) -> np.ndarray:
+        """
+        Generic forward pass.
+        x: Primary input (e.g., Context, Message Window)
+        secondary_input: Optional (e.g., Previous State for Context Core)
+        """
+        # Feature Factorization & Topology
         embedding = self.spline_bank.get_spline_embedding(x, 0)
-        
-        # 2. Internal Topology Sort (Convolution prep)
         embedding = self.perm_bank[0].forward(embedding)
-        if pos is not None:
-            pos = self.perm_bank[0].forward(pos)
+        
+        # Merge secondary input if present (Concatenation or Addition)
+        if secondary_input is not None:
+            # Simple placeholder mix
+            target_len = len(embedding)
+            sec_len = len(secondary_input)
+            if sec_len < target_len:
+                secondary_input = np.pad(secondary_input, (0, target_len - sec_len))
+            embedding = embedding + secondary_input[:target_len]
 
-        # 3. Attention / Conv (Soft Aperture)
+        # Attention / Conv
         current_sigma = self.get_aperture_sigma()
         if self.parallel_layers:
             token_batch = embedding[None, :]
@@ -261,11 +272,9 @@ class Core:
         for layer in self.downstream_layers:
             embedding = layer(embedding)
 
-        # 4. Stochastic Output
+        # Stochastic Output
         embedding = self.stochastic_head.forward(embedding)
-        embedding = self.output_scale * embedding
-        
-        return embedding, pos
+        return embedding * self.output_scale
 
 
 # ============================================================
@@ -295,6 +304,17 @@ class Logistics:
             "tick": self.current_tick
         })
     
+    def deliver_mail(self, modules: Dict[str, Module]) -> None:
+        """Delivers messages to Module Connectors if arrival_tick matches."""
+        remaining = []
+        for req in self.request_queue:
+            # Placeholder Logic: Immediate delivery for scaffold
+            if req["dest"] in modules:
+                modules[req["dest"]].receive_message(req["source"], req["content"], req["pos"])
+            else:
+                remaining.append(req)
+        self.request_queue = remaining
+
     def get_temporal_loss(self) -> float:
         loss = self.temporal_loss_accumulated
         self.temporal_loss_accumulated = 0.0
@@ -302,45 +322,73 @@ class Logistics:
 
 
 # ============================================================
-# SECTION 7 — Module and MindsEye
+# SECTION 7 — Module (The Trinity)
 # ============================================================
 
 class Module:
     """
-    Adaptive agent. Receiver-Centric ownership of connectors.
-    Aware of Hemisphere (Active vs Reflective) for Bicameral topology.
+    The Trinity Architecture: Context -> State -> Service.
     """
     def __init__(self, module_id: str, input_dim: int, embedding_dim: int, level: int = 0, hemisphere: str = "active") -> None:
         self.level = level 
-        self.hemisphere = hemisphere # "active" or "reflective"
+        self.hemisphere = hemisphere
         self.id = module_id
         self.embedding_dim = embedding_dim
 
-        self.state_core = Core(input_dim, embedding_dim)
+        # THE TRINITY
+        self.context_core = Core(input_dim, embedding_dim) # The Grunt
+        self.state_core = Core(embedding_dim, embedding_dim) # The Operator
+        self.service_core = Core(embedding_dim, embedding_dim) # The Agent
+
         self.memory = Memory()
-        
-        # Receiver-Centric Routing: Map[sender_id -> Connector]
         self.input_connectors: Dict[str, Connector] = {}
-        
         self.complexity = Complexity()
         self.utility = 0.0
+        
+        # Internal State
+        self.current_state = np.zeros(embedding_dim)
 
     def ensure_connector(self, sender_id: str) -> Connector:
         if sender_id not in self.input_connectors:
-            # RECEIVER PAYS SPACE
-            new_connector = Connector(self.embedding_dim)
-            self.complexity.space_tokens += 10 
-            self.input_connectors[sender_id] = new_connector
+            self.input_connectors[sender_id] = Connector(self.embedding_dim)
         return self.input_connectors[sender_id]
 
-    def receive_and_process(self, 
-                            sender_id: str, 
-                            content: np.ndarray, 
-                            pos: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    def receive_message(self, sender_id: str, content: np.ndarray, pos: np.ndarray) -> None:
+        """Logistics drops mail here."""
         connector = self.ensure_connector(sender_id)
-        aligned_content, aligned_pos = connector.process_message(content, pos)
-        output_content, output_pos = self.state_core.forward(aligned_content, aligned_pos)
-        return output_content, output_pos
+        connector.receive(content, pos)
+
+    def process_tick(self) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+        """
+        The Agentic Cycle: Input -> Context -> State -> Service -> Output
+        """
+        # 1. Context Phase (The Grunt)
+        # Aggregate all connector buffers
+        context_inputs = []
+        for conn in self.input_connectors.values():
+            content, _ = conn.get_aligned_window()
+            context_inputs.append(content)
+        
+        # Flatten/Merge inputs (Simplified for scaffold)
+        if context_inputs:
+            context_data = np.concatenate(context_inputs, axis=0)
+        else:
+            context_data = np.zeros((1, self.embedding_dim))
+            
+        # Context sees data AND previous state (Top-down attention)
+        context_vec = self.context_core.forward(context_data, self.current_state)
+        
+        # 2. State Phase (The Operator)
+        # Update private state based on Context and Memory
+        new_state = self.state_core.forward(context_vec, self.current_state)
+        self.current_state = new_state # Private Update
+        self.memory.store(new_state)
+        
+        # 3. Service Phase (The Agent)
+        # Generate public output based on State and Context
+        public_output = self.service_core.forward(new_state, context_vec)
+        
+        return public_output, None # Positional logic managed by core pass-through
         
     def clone(self) -> "Module":
         return Module(self.id + "_clone", 0, self.embedding_dim, self.level, self.hemisphere)
@@ -348,17 +396,13 @@ class Module:
 
 class MindsEye(Module):
     """
-    Meta-learning / architecture oversight module.
-    Lives in the Reflective Hemisphere. 
-    High connectivity to other modules' hyperparameters.
+    Executive Module in Reflective Hemisphere.
     """
     def __init__(self, module_id: str = "minds_eye",
                  input_dim: int = 128, embedding_dim: int = 256) -> None:
         super().__init__(module_id, input_dim, embedding_dim, level=33, hemisphere="reflective")
-        self.architecture_memory: Memory = Memory()
 
     def update_architecture(self, graph_state: Dict[str, Any]) -> None:
-        # Optimization Targets: Loss Velocity, Complexity Ratio, Gradient Variance
         pass
 
 
@@ -371,23 +415,12 @@ class HierarchyManager:
         self.num_levels: int = num_levels
         self.level_states: List[str] = ["identity"] * num_levels
 
-    def activate_level(self, level_index: int) -> None:
-        if 0 <= level_index < self.num_levels:
-            self.level_states[level_index] = "active"
-
-
 class Interface:
     def __init__(self, mode: str = "input", embedding_dim: int = 256) -> None:
         self.mode: str = mode
         self.embedding_dim: int = embedding_dim
-
     def encode(self, x: np.ndarray) -> np.ndarray:
-        result: np.ndarray = np.zeros(self.embedding_dim, dtype=float)
-        limit: int = min(self.embedding_dim, x.size)
-        for index in range(limit):
-            result[index] = float(x[index])
-        return result
-
+        return np.array(x, dtype=float) 
     def decode(self, y: np.ndarray) -> np.ndarray:
         return y
 
@@ -399,17 +432,11 @@ class Interface:
 class SymmetryBreaker:
     def __init__(self, noise_scale: float = 1e-5) -> None:
         self.noise_scale = noise_scale
-
     def perturb_tensor(self, tensor: Optional[np.ndarray]) -> Optional[np.ndarray]:
         if tensor is None: return None
         return tensor + self.noise_scale * np.random.randn(*tensor.shape)
-
     def apply(self, module: Module) -> Module:
-        for connector in module.input_connectors.values():
-            connector.row_perm.fixed_coeffs = self.perturb_tensor(connector.row_perm.fixed_coeffs)
-            connector.col_perm.fixed_coeffs = self.perturb_tensor(connector.col_perm.fixed_coeffs)
-            connector.connection_strength += np.random.randn() * 0.001
-        return module
+        return module # Simplified
 
 class NASController:
     def __init__(self) -> None:
@@ -427,33 +454,32 @@ class NASController:
 # ============================================================
 
 class GraphModel:
-    """
-    Self-Contained "One Mind".
-    Contains all physics (Logistics, NAS) and agents (Modules, MindsEye).
-    """
     def __init__(self, input_dim: int, embedding_dim: int) -> None:
         self.logistics = Logistics()
         self.nas = NASController()
         self.impedance = ImpedanceCurve()
+        self.modules: Dict[str, Module] = {}
         
-        # Initialize Bicameral Topology
-        self.modules: List[Module] = []
-        
-        # Hemisphere A (Active / Body)
-        input_mod = Module("input_sensor", input_dim, embedding_dim, level=0, hemisphere="active")
-        
-        # Hemisphere B (Reflective / Mind)
-        # MindsEye is just a module here, but highly connected
-        executive = MindsEye("executive", input_dim, embedding_dim)
-        
-        self.modules.append(input_mod)
-        self.modules.append(executive)
+        # Init Topology
+        self.modules["input"] = Module("input", input_dim, embedding_dim, level=0, hemisphere="active")
+        self.modules["minds_eye"] = MindsEye("minds_eye", input_dim, embedding_dim)
 
     def forward(self, x: np.ndarray) -> Any:
         self.logistics.tick()
-        # Mock Routing: Typically Action Hemisphere processes x
-        input_mod = self.modules[0] 
-        initial_pos = np.arange(len(x)).astype(float)
         
-        out, _ = input_mod.receive_and_process("environment", x, initial_pos)
-        return out
+        # 1. Environment Input -> Input Module Buffer
+        initial_pos = np.arange(len(x)).astype(float)
+        self.modules["input"].receive_message("env", x, initial_pos)
+        
+        # 2. Logistics Delivery (Move messages from queues to buffers)
+        self.logistics.deliver_mail(self.modules)
+        
+        # 3. Processing Tick (All Modules Run Cycle)
+        # In reality, this would be parallel or scheduled
+        final_output = None
+        for mod in self.modules.values():
+            out, _ = mod.process_tick()
+            if mod.id == "input": # Simplified loopback
+                final_output = out
+                
+        return final_output
