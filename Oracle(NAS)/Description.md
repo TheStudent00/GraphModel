@@ -10,14 +10,14 @@ The Graph Model is a general-purpose, modular, hierarchical learning system buil
 
 This description asserts IP protection over:
 
-- the monotone-spline feature standardization process,
+- the monotone-spline feature standardization and factorization process,
 - the Core/Module/MindsEye structural hierarchy,
 - attention-as-atomic-primitive routing embedded into modular computation,
 - the 33-level nascent abstraction hierarchy,
 - dynamic architecture search (NAS) with cloning, merging, and complexity gradients,
 - overlap management and symmetry-breaking mechanisms,
 - internal memory compression/expansion logic,
-- module-to-module logistics (request/response),
+- module-to-module logistics (Sender-Time/Receiver-Space economy),
 - learnable permutation structures per contact (Dual-Axis),
 - meta-learning strategies for bootstrapping MindsEye,
 - and the general organizational logic of the Graph Model Oracle.
@@ -54,11 +54,11 @@ The system aims to unify:
 A Core is the atomic computational operator. It includes:
 
 - **Monotone-spline feature extraction** with sorted-input canonicalization.
-- **Learned-permutation projection**, enabling mapping between feature-space orders.
+- **Factorized Feature Architecture:** Decoupling magnitude distributions (Splines) from topological orientations (Permutations).
 - **Parallel Q/K/V feature layers** for attention-based routing and transformation.
 - **Contextual mixing** via softmax(QK)·V.
 - **Expandable parallel and downstream feature layers** through NAS.
-- **Bayesian Potential:** Every Core possesses the dormant capability to operate stochastically via Spline Flows (see Section 16).
+- **Bayesian Potential:** Every Core possesses the dormant capability to operate stochastically via Spline Flows.
 
 A Core is an embedded expert capable of both computation and communication.
 
@@ -72,7 +72,7 @@ A Module is a container for multiple Cores:
 
 - **Service Core** A callable function providing transformations for other Modules on request.
 
-- **Connector Subsystem** A set of learnable input ports managing connections to other modules (see Section 12).
+- **Connector Subsystem** A set of learnable input ports managing connections to other modules (Receiver-Centric).
 
 - **Memory subsystem** Recent (uncompressed) and older (compressed) memories in embedded space.
 
@@ -108,26 +108,26 @@ This allows the architecture to evolve from "Dense" to "Conv" via differentiable
 
 ---
 
-# 4. Monotone-Spline Feature Standardization
+# 4. Monotone-Spline Feature Standardization and Factorization
 
-A key innovation:
+A key innovation is the treatment of data and weights as **Geometric Shapes** rather than raw arrays.
 
-1. Input or internal feature vectors are **sorted** (descending or ascending).
-2. The sorted vector is treated as a **monotone curve**.
-3. The curve is encoded via **monotone splines**.
-4. A learned-permutation matrix maps between raw feature ordering and canonicalized forms.
+## 4.1 Input Standardization
+1. Input vectors are **sorted** (descending or ascending) to produce a Monotone Curve.
+2. The curve is encoded via **monotone splines**.
+3. This creates an input representation that is invariant to index permutation (until re-permuted), acting as a **Universal Interface**.
 
-Benefits:
+## 4.2 Feature Factorization (The Lego Principle)
+The Core separates the definition of a feature into two distinct banks:
+1.  **Spline Bank (Content/Physics):** Defines the magnitude distribution of a feature (e.g., "Sharp Contrast," "Gaussian Bell," "Linear Gradient").
+2.  **Permutation Bank (Context/Geometry):** Defines the topological ordering of those values (e.g., "Vertical," "Horizontal," "Spiral").
 
-- universal geometric representation,
-- feature comparability across Modules,
-- reduced entanglement,
-- stable dynamics for Q/K/V mixing,
-- scalable expandability.
+An **Active Feature** is a learned pairing of a Spline from the bank and a Permutation from the bank.
+* **Benefit:** A single Spline (e.g., "Edge") can be reused across multiple Permutations (Orientations), enabling **Combinatorial Compression** and preventing the model from re-learning the same physics for every geometry.
 
-This canonicalization is central to Graph Model’s universality.
+---
 
-## 4.1 Spectral Permutation Families as Core-Level Geometry
+## 4.3 Spectral Permutation Families as Core-Level Geometry
 
 Permutation logic is no longer stored inside Contact structures, nor is it modeled by simple curves. Instead, each Core owns one or more **Spectral Permutation Families**—continuous, learnable fields that generate discrete permutations for any input length via a hybrid Fourier basis.
 
@@ -142,7 +142,7 @@ A Spectral Permutation Family `F` is defined as a learnable function $f(t)$ comp
 **The Nyquist Guardrail:**
 To prevent aliasing—where high-frequency logic creates chaotic artifacts on small vectors—the system applies a dynamic **Nyquist Mask**. For an input of size $N$, any frequency component $f_{comp} > N/2$ is zeroed out. This ensures universality across variable-length inputs without aliasing.
 
-## 4.2 Receiver-Centric Feature-Space Interpretation
+## 4.4 Receiver-Centric Feature-Space Interpretation
 
 Permutation Families belong strictly to the **receiving module**, not the sender. This ensures:
 - The receiver controls its own feature-space geometry (Subjective Interpretation).
@@ -281,16 +281,23 @@ Memory acts as a continuous, lossy, self-structuring store.
 
 ---
 
-# 11. Complexity Gradient
+# 11. Complexity Gradient and Logistics Economy
 
-A regulatory mechanism analogous to special relativity:
+A regulatory mechanism analogous to special relativity drives structural evolution.
 
-- As module complexity (space/time) approaches its limit, the cost of extra expansion → ∞.
-- Encourages pruning, compression, merging.
-- Controls NAS growth.
-- Ensures efficient, sparse structural development.
+### 11.1 The Sender-Time / Receiver-Space Economy
+To prevent arbitrary connectivity and spam, the Logistics subsystem splits the complexity bill:
+1.  **Sender Pays Time Tokens:** The cost of *transporting* the message (Queueing, Latency). A module only sends if the signal is worth the time-cost.
+2.  **Receiver Pays Space Tokens:** The cost of *maintaining* the Connector (Parameters, Memory). A module only listens if the information is worth the structural-cost.
 
-This is an architectural energy model guiding structural evolution.
+### 11.2 Learnable Hierarchical Impedance (Topology Cost)
+To organize the graph into a meaningful abstraction ladder without forbidding necessary shortcuts, the Complexity Subsystem imposes a tax on connections based on **Hierarchical Distance** ($\Delta L = |L_{sender} - L_{receiver}|$).
+
+* **The Impedance Curve:** A learnable **Monotone Spline** defines the cost function $C(\Delta L)$.
+* **Initialization (The Natural Prior):** The curve is initialized as a "Potential Well" (Bathtub shape).
+    * Near $\Delta L \approx 1$ (Neighbors): Cost $\approx 0$. Curvature is minimal. This encourages standard bottom-up/top-down flow.
+    * As $\Delta L$ increases (Skips): Cost rises sharply.
+* **Evolution:** The NAS can modify the control points of this spline to afford necessary teleportations.
 
 ---
 
@@ -318,14 +325,6 @@ To prevent the loss of spatial/topological information during permutations, all 
 * Connector permutes the Content and Position together.
 * Receiver uses the PositionalIDs to recover the original spatial geometry if needed.
 
-### 12.4 Learnable Hierarchical Impedance (Topology Cost)
-To organize the graph into a meaningful abstraction ladder without forbidding necessary shortcuts, the Complexity Subsystem imposes a tax on connections based on **Hierarchical Distance** ($\Delta L = |L_{sender} - L_{receiver}|$).
-
-* **The Impedance Curve:** A learnable **Monotone Spline** defines the cost function $C(\Delta L)$.
-* **Initialization (The Natural Prior):** The curve is initialized as a "Potential Well" (Bathtub shape).
-    * Near $\Delta L \approx 1$ (Neighbors): Cost $\approx 0$. Curvature is minimal. This encourages standard bottom-up/top-down flow.
-    * As $\Delta L$ increases (Skips): Cost rises sharply.
-* **Evolution:** The NAS can modify the control points of this spline. If a "Teleportation" (Level 1 $\to$ 33) is critical for utility, the system bends the cost curve to make that specific distance affordable, effectively "warping" the internal space of the model.
 ---
 
 # 13. Symmetry Breaking in Cloned Modules
@@ -353,21 +352,14 @@ This forms the system’s evolutionary architecture.
 
 ---
 
-# 14. Bootstrapping MindsEye
+# 14. Bootstrapping MindsEye (Meta-Optimization Targets)
 
-To avoid erratic early meta-learning, MindsEye can be bootstrapped with supervised mappings:
+To avoid erratic early meta-learning, MindsEye can be bootstrapped with supervised mappings. MindsEye optimizes the architecture based on **Meta-Gradient Targets** including but not limited to:
 
-- For tasks with known optimal architectures:
-  - convert optimal architectures to GraphModel form,
-  - perturb them,
-  - train MindsEye to map perturbed → optimal.
-
-This teaches:
-
-- structural correction,
-- optimization regime selection,
-- architectural priors,
-- proper routing patterns.
+1.  **Loss Velocity:** The rate of change of the loss function (Learning Speed).
+2.  **Complexity Ratio:** The utility (accuracy gain) per unit of complexity token spent.
+3.  **Gradient Variance:** A proxy for stability and noise.
+4.  **Temporal Rhythm:** The isochrony of signal propagation, minimizing internal timing errors.
 
 This replaces blind meta-learning with grounded, stable initialization.
 
@@ -409,7 +401,7 @@ To maintain the principle of "Smooth Evolution," the system does not discretely 
 
 Protected elements include:
 
-- spline-standardized features,
+- spline-standardized features and factorized feature architecture,
 - multi-permutation Contact logic (Dual-Axis),
 - attention-as-atomic-Core,
 - multi-regime optimization logic,
@@ -417,8 +409,8 @@ Protected elements include:
 - learnable-scalar Overlap replacement,
 - NAS cloning + divergence + pruning,
 - memory compression curvature,
-- MindsEye meta-optimization mechanics,
-- the complete logistical request/response,
+- MindsEye meta-optimization mechanics and targets,
+- the complete logistical request/response economy (Sender-Time/Receiver-Space),
 - internal rhythm-temporal error system,
 - differentiable aperture evolution (Dense-to-Conv),
 - continuous stochastic evolution via spline flows,
