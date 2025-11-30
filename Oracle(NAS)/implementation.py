@@ -71,8 +71,7 @@ class SplineBank:
         # Sort input to get monotonic signal
         sorted_x = np.sort(x)
         # Apply the specific spline transformation (Placeholder)
-        # In reality: apply spline[spline_idx] to sorted_x
-        return sorted_x # Placeholder
+        return sorted_x 
 
 
 # ============================================================
@@ -82,7 +81,7 @@ class SplineBank:
 class SpectralPermutationFamily:
     """
     Continuous parameterization of permutations using a Hybrid Fourier Basis.
-    Used for Feature Orientation (in Core) and Alignment (in Connector).
+    Used for both Topological Sorting (Rows) and Semantic Sorting (Cols).
     """
 
     def __init__(self, num_fixed: int = 8, num_relative: int = 4) -> None:
@@ -127,7 +126,6 @@ class SplineStochasticHead:
     """
     def __init__(self, embedding_dim: int, num_bins: int = 8) -> None:
         self.embedding_dim = embedding_dim
-        # Init to Heaviside Step (Deterministic Identity)
         self.knot_logits = np.zeros((embedding_dim, num_bins)) 
         self.knot_logits[:, num_bins // 2] = 5.0 
         self.knot_logits[:, :] -= 2.0 
@@ -244,12 +242,7 @@ class Core:
         return np.log(1 + np.exp(self.aperture_logits))
 
     def forward(self, x: np.ndarray, pos: Optional[np.ndarray] = None) -> Tuple[np.ndarray, Optional[np.ndarray]]:
-        """
-        Process Input + Position.
-        """
         # 1. Feature Factorization Phase
-        # Select a Spline and Permutation (Simplified: Use index 0)
-        # In full version: Mixing/Gating multiple Spline/Perm pairs
         embedding = self.spline_bank.get_spline_embedding(x, 0)
         
         # 2. Internal Topology Sort (Convolution prep)
@@ -297,7 +290,6 @@ class Logistics:
 
     def enqueue(self, source: str, dest: str, content: Any, pos: Any) -> None:
         # SENDER PAYS TIME
-        # TODO: Calculate time cost based on payload size
         self.request_queue.append({
             "source": source, "dest": dest, "content": content, "pos": pos,
             "tick": self.current_tick
@@ -316,9 +308,11 @@ class Logistics:
 class Module:
     """
     Adaptive agent. Receiver-Centric ownership of connectors.
+    Aware of Hemisphere (Active vs Reflective) for Bicameral topology.
     """
-    def __init__(self, module_id: str, input_dim: int, embedding_dim: int, level: int = 0) -> None:
+    def __init__(self, module_id: str, input_dim: int, embedding_dim: int, level: int = 0, hemisphere: str = "active") -> None:
         self.level = level 
+        self.hemisphere = hemisphere # "active" or "reflective"
         self.id = module_id
         self.embedding_dim = embedding_dim
 
@@ -335,7 +329,7 @@ class Module:
         if sender_id not in self.input_connectors:
             # RECEIVER PAYS SPACE
             new_connector = Connector(self.embedding_dim)
-            self.complexity.space_tokens += 10 # Placeholder cost
+            self.complexity.space_tokens += 10 
             self.input_connectors[sender_id] = new_connector
         return self.input_connectors[sender_id]
 
@@ -349,16 +343,18 @@ class Module:
         return output_content, output_pos
         
     def clone(self) -> "Module":
-        return Module(self.id + "_clone", 0, self.embedding_dim)
+        return Module(self.id + "_clone", 0, self.embedding_dim, self.level, self.hemisphere)
 
 
 class MindsEye(Module):
     """
     Meta-learning / architecture oversight module.
+    Lives in the Reflective Hemisphere. 
+    High connectivity to other modules' hyperparameters.
     """
     def __init__(self, module_id: str = "minds_eye",
                  input_dim: int = 128, embedding_dim: int = 256) -> None:
-        super().__init__(module_id, input_dim, embedding_dim)
+        super().__init__(module_id, input_dim, embedding_dim, level=33, hemisphere="reflective")
         self.architecture_memory: Memory = Memory()
 
     def update_architecture(self, graph_state: Dict[str, Any]) -> None:
@@ -431,15 +427,33 @@ class NASController:
 # ============================================================
 
 class GraphModel:
+    """
+    Self-Contained "One Mind".
+    Contains all physics (Logistics, NAS) and agents (Modules, MindsEye).
+    """
     def __init__(self, input_dim: int, embedding_dim: int) -> None:
-        self.modules = [Module("root", input_dim, embedding_dim)]
         self.logistics = Logistics()
         self.nas = NASController()
         self.impedance = ImpedanceCurve()
+        
+        # Initialize Bicameral Topology
+        self.modules: List[Module] = []
+        
+        # Hemisphere A (Active / Body)
+        input_mod = Module("input_sensor", input_dim, embedding_dim, level=0, hemisphere="active")
+        
+        # Hemisphere B (Reflective / Mind)
+        # MindsEye is just a module here, but highly connected
+        executive = MindsEye("executive", input_dim, embedding_dim)
+        
+        self.modules.append(input_mod)
+        self.modules.append(executive)
 
     def forward(self, x: np.ndarray) -> Any:
         self.logistics.tick()
-        root = self.modules[0]
+        # Mock Routing: Typically Action Hemisphere processes x
+        input_mod = self.modules[0] 
         initial_pos = np.arange(len(x)).astype(float)
-        out, _ = root.receive_and_process("input", x, initial_pos)
+        
+        out, _ = input_mod.receive_and_process("environment", x, initial_pos)
         return out
