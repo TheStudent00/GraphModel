@@ -14,6 +14,7 @@ This description asserts IP protection over:
 - the **Sub-Feature Factorization** into Spline (Physics), Permutation (Geometry), and Noise (Entropy),
 - the **Fractal Scale Equivariance** mechanism (Renormalization flow),
 - the Core/Module/MindsEye structural hierarchy (The Trinity Architecture),
+- the **Spectral Prism** channel-mixing policy,
 - the Bicameral (Hemispheric) Autopoietic Architecture,
 - attention-as-atomic-primitive routing embedded into modular computation,
 - the 33-level nascent abstraction hierarchy,
@@ -59,6 +60,7 @@ A Core is the atomic computational operator. To ensure total universality, **Cor
 
 Components:
 - **Factorized Feature Architecture:** Decoupling magnitude distributions (Splines), topological orientations (Fractal Permutations), and residual entropy (Noise).
+- **Spectral Prism (Channel Mixer):** A learnable mixing matrix at the input of the Core that allows the Module to define its own policy for combining co-located input fields (Channels).
 - **Parallel Q/K/V feature layers** for attention-based routing and transformation.
 - **Differentiable Gaussian Aperture** for smooth global-to-local evolution.
 - **Fractal Permutation Head:** Capabilities for stochastic upsampling and texture generation via learned jitter prediction.
@@ -69,7 +71,7 @@ To support robust agentic behavior, privacy, and temporal integration, every Mod
 
 1.  **Context Core (The Grunt/Sensor):**
     * *Role:* Perception and Filtering.
-    * *Function:* Aggregates inputs from all Connectors. It processes sequences of embeddings (Time) to handle super-resolution inputs.
+    * *Function:* Aggregates inputs from all Connectors. It processes sequences of embeddings (Time) to handle super-resolution inputs and uses the **Spectral Prism** to fuse channels.
     * *Output:* A compressed `Context_Vector`.
 2.  **State Core (The Operator/Nucleus):**
     * *Role:* Identity, Memory, and Integration.
@@ -92,6 +94,7 @@ A key innovation is the treatment of all data (Images, Audio, Graphs) as **Linea
 ## 4.1 The Dual-Path Interface (Metric vs. Relational)
 The Interface linearizes data based on its fundamental nature, ensuring $O(N)$ efficiency where possible:
 1.  **Metric Path (The Fast Path):** For data with absolute coordinates (Images, Video, Voxel Grids). Uses **Z-Order (Morton) Curves** to linearize $N$-dimensions into 1D while preserving locality.
+    * *Channel Independence:* Spatial dimensions are linearized; Channel dimensions (co-located fields) are treated as stacked parallel streams to preserve spline smoothness.
 2.  **Relational Path (The Graph Path):** For data defined by connectivity (Social Nets, Molecules). Uses **Spectral Ordering** (Fiedler Vector) to linearize nodes based on graph topology.
 
 ## 4.2 The Topology Token
@@ -168,6 +171,7 @@ Protected elements include:
 - Hierarchical Virtual Identity,
 - Sender-Time/Receiver-Space Logistics,
 - Differentiable Aperture & Fractal Heads,
+- Spectral Prism Channel Mixing,
 - and the Autopoietic Bicameral Topology.
 
 This document unifies all architectural components under a single protected conceptual framework.
