@@ -1,5 +1,5 @@
 # Graph Model Implementation Notes
-# Version 7.1 - Includes Universal Linearization & Fractal Equivariance
+# Version 8.0 - Includes Spectral Prism, Z-Order Linearization & Fractal Equivariance
 
 from __future__ import annotations
 from typing import Dict, List, Optional, Any, Tuple, Deque, Union
@@ -16,8 +16,8 @@ class TopologyToken:
     Allows the Receiver to select the correct Basis Functions.
     """
     def __init__(self, mode: str, shape: Optional[Tuple] = None, meta: Optional[Dict] = None):
-        self.mode = mode  # "metric" or "relational"
-        self.shape = shape # e.g., (3, 16, 16, 16) for Metric
+        self.mode = mode  # "metric" (Grid) or "relational" (Graph)
+        self.shape = shape # e.g., (3, 16, 16) for Metric [Channels, H, W]
         self.meta = meta   # e.g., {"n_nodes": 1024} for Relational
 
 class UniversalWorm:
@@ -40,6 +40,7 @@ class UniversalWorm:
             code = 0
             for b in range(bits):
                 for d in range(D):
+                    # Interleave bits
                     bit = (coords[i, d] >> b) & 1
                     code |= bit << (b * D + d)
             z_codes.append(code)
@@ -57,6 +58,7 @@ class Interface:
     def linearize(self, data: np.ndarray, adjacency: Optional[np.ndarray] = None) -> Dict[str, Any]:
         """
         Universal Pre-processor.
+        Input data is assumed to be (Channels, D1, D2...) for metric, or (Nodes, Feats) for relational.
         """
         if adjacency is not None:
             return self._spectral_linearize(data, adjacency)
@@ -66,17 +68,31 @@ class Interface:
     def _z_order_linearize(self, data: np.ndarray) -> Dict[str, Any]:
         """
         Metric Path (Fast O(N)).
+        Handles Channels as Co-located Fields (Independent Linearization).
         """
-        shape = data.shape
-        # Generate Grid Coordinates
-        coords = np.indices(shape).reshape(len(shape), -1).T
+        # Assumes data shape is (Channels, D1, D2...)
+        # We linearize the SPATIAL dimensions (D1, D2...)
+        full_shape = data.shape
+        num_channels = full_shape[0]
+        spatial_shape = full_shape[1:]
         
-        # Compute Z-Order
+        # 1. Generate Grid Coordinates for one Spatial Plane
+        coords = np.indices(spatial_shape).reshape(len(spatial_shape), -1).T
+        
+        # 2. Compute Z-Order for Space
         sort_idx = self.worm_helper.z_order_argsort(coords)
-        linear_stream = data.flatten()[sort_idx]
         
-        token = TopologyToken(mode="metric", shape=shape)
-        return {"stream": linear_stream, "topology": token}
+        # 3. Apply Z-Order to EACH Channel independently (Stack of Worms)
+        linearized_channels = []
+        for c in range(num_channels):
+            channel_flat = data[c].flatten()
+            linearized_channels.append(channel_flat[sort_idx])
+            
+        # Result: (Channels, Total_Spatial_Points)
+        stream_stack = np.stack(linearized_channels)
+        
+        token = TopologyToken(mode="metric", shape=full_shape)
+        return {"stream": stream_stack, "topology": token}
 
     def _spectral_linearize(self, data: np.ndarray, adjacency: np.ndarray) -> Dict[str, Any]:
         """
@@ -138,8 +154,30 @@ class SplineBank:
 
 
 # ============================================================
-# SECTION 3 — Layers & Routing
+# SECTION 3 — Layers, Prisms & Routing
 # ============================================================
+
+class SpectralPrism:
+    """
+    The Channel Mixer.
+    Located at the Core's entry point.
+    Allows the Module to define its policy for fusing Co-located Fields.
+    """
+    def __init__(self, embedding_dim: int, max_channels: int = 16):
+        self.embedding_dim = embedding_dim
+        # Learnable Mixing Matrix (The Policy)
+        self.mixing_matrix = np.eye(max_channels, embedding_dim) 
+
+    def refract(self, worm_stack: np.ndarray) -> np.ndarray:
+        """
+        Input: Stack of Worms (Channels, Sequence_Len)
+        Output: Mixed Sequence (Sequence_Len, Embedding_Dim)
+        """
+        # Transpose to (Seq, Channels) then Mix
+        # Output: (Seq, Embedding_Dim)
+        if worm_stack.ndim == 1: worm_stack = worm_stack[None, :]
+        return np.dot(worm_stack.T, self.mixing_matrix[:len(worm_stack)])
+
 
 class Connector:
     """
@@ -154,20 +192,22 @@ class Connector:
 
     def receive(self, content: np.ndarray, topology: TopologyToken) -> None:
         self.topology = topology # Store metadata for Basis selection
-        # Content is expected to be a sequence of vectors
-        if content.ndim == 1:
-            self.buffer.append(content)
-        else:
-            for vector in content:
-                self.buffer.append(vector)
+        # content is (Channels, Length)
+        # We append slices of length (columns) to buffer
+        # Buffer stores "Time Steps", where each step is a Vector of Channels
+        if content.ndim > 1:
+            # Transpose to (Length, Channels) to iterate time
+            time_stream = content.T 
+            for t_step in time_stream:
+                self.buffer.append(t_step)
 
     def get_aligned_window(self) -> np.ndarray:
         """
         Returns the buffer as a Sequence for the Context Core.
-        Context Core will apply Aperture to 'Convolve' or 'Downsample' this sequence.
+        Format: (Time, Channels)
         """
         if not self.buffer:
-            return np.zeros((1, self.embedding_dim))
+            return np.zeros((1, 1)) # Empty
         return np.stack(self.buffer)
 
 
@@ -178,17 +218,24 @@ class Connector:
 class Core:
     def __init__(self, embedding_dim: int) -> None:
         self.embedding_dim = embedding_dim
+        self.prism = SpectralPrism(embedding_dim) # Channel Mixer
         self.spline_bank = SplineBank(16, embedding_dim)
-        self.fractal_head = FractalPermutationHead(embedding_dim) # Updated Head
-        self.parallel_layers = [] # QKV Layers
+        self.fractal_head = FractalPermutationHead(embedding_dim) # Scale Equivariance
         self.output_scale = 1.0
 
-    def forward(self, x: np.ndarray) -> np.ndarray:
-        # 1. Spline Encode (Physics)
-        embedding = self.spline_bank.get_spline_embedding(x)
+    def forward(self, x_stream: np.ndarray, state_context: Optional[np.ndarray] = None) -> np.ndarray:
+        """
+        x_stream: (Time, Channels) - Raw Input
+        """
+        # 1. Spectral Prism (Mix Channels -> Embedding Space)
+        # Result: (Time, Embedding_Dim)
+        mixed_stream = self.prism.refract(x_stream.T) 
         
-        # 2. Attention / Processing
-        # ... (Standard Transformer Logic) ...
+        # 2. Spline Encode (Physics) on the mixed vectors
+        # (Simplified: applying to last step or aggregated step)
+        embedding = self.spline_bank.get_spline_embedding(mixed_stream[-1])
+        
+        # ... Attention / Processing ...
         
         # 3. Fractal Scale Equivariance (Geometry Reconstruction)
         embedding = self.fractal_head.forward(embedding)
@@ -216,16 +263,15 @@ class Module:
 
     def process_tick(self) -> Tuple[np.ndarray, TopologyToken]:
         # 1. Context Phase (Aggregates Streams)
-        context_inputs = []
+        # Context Core aggregates sequences (Time) and Channels (Fields)
+        # Logic simplified for scaffold
         for conn in self.input_connectors.values():
-            window = conn.get_aligned_window() # (Time, D)
-            context_inputs.append(window)
+            window = conn.get_aligned_window() # (Time, Channels)
+            context_vec = self.context_core.forward(window)
         
         # ... Processing Logic ...
         
-        # Output Generation
-        output_vec = self.service_core.forward(self.current_state)
-        # Modules output their own topology (usually Metric 1D stream for simplicity)
+        output_vec = self.service_core.forward(np.atleast_2d(self.current_state).T)
         out_token = TopologyToken(mode="metric", shape=(1, self.context_core.embedding_dim))
         
         return output_vec, out_token
@@ -243,11 +289,9 @@ class GraphModel:
 
     def forward(self, raw_input: np.ndarray, adjacency: Optional[np.ndarray] = None) -> Any:
         # 1. Universal Linearization
-        # Returns {stream, topology}
         packet = self.interface.linearize(raw_input, adjacency)
         
         # 2. Input Module Receive
         self.modules["input"].receive_message("env", packet["stream"], packet["topology"])
         
-        # 3. Graph Execution ...
         return None
