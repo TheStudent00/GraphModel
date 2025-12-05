@@ -1,5 +1,11 @@
+{
+type: uploaded file
+fileName: implementation_version_9_1.py
+fullContent:
 # Graph Model Implementation Notes
-# Version 9.0 — Grand Unification (Recursive, Virtual, & Physical)
+# Version 9.1 — Grand Unification (Integrated)
+# Restores V6/V7/V8 Physics (LossComplexity, Impedance, Rhythm) 
+# into the V9 Recursive Fractal Container.
 
 from __future__ import annotations
 from typing import List, Dict, Optional, Any, Union, Tuple, Deque
@@ -10,283 +16,324 @@ import numpy as np
 # SECTION 1 — The Physics Layer (Universal Representations)
 # ============================================================
 
-class Complexity:
+class LossComplexity:
     """
-    Tracks the Dual-Cost of existence.
-    Separates Runtime (Op) cost from Evolutionary (Learn) cost.
+    [Restored from V6/User Request]
+    The Relativistic Barrier.
+    Manages the 'Architectural Energy' of a module.
     """
-    def __init__(self):
-        self.operating_bounds = {"space": 1e6, "time": 100} 
-        self.learning_bounds = {"space": 1e9, "time": 1000}
-        self.op_cost = {"space": 0.0, "time": 0.0} 
-        self.learn_cost = {"space": 0.0, "time": 0.0}
+    def __init__(self, limit_space: float = 1e6, limit_time: float = 100.0):
+        self.limit_space = limit_space
+        self.limit_time = limit_time
+        
+        # Curvature Gamma (Learnable by MindsEye)
+        # Higher Gamma = Harder Wall. Lower Gamma = Softer Wall.
+        self.gamma = 1.0 
+        
+        self.current_space = 0.0
+        self.current_time = 0.0
 
-class Spline:
-    """[Physics] Magnitude Distribution. Scale Invariant."""
-    def __init__(self, embedding_dim: int):
-        self.knots = np.zeros(embedding_dim) # Monotone initialization
+    def get_barrier_penalty(self) -> float:
+        """
+        Calculates the relativistic cost as complexity approaches the limit.
+        Cost -> Infinity as Current -> Limit.
+        Formula: 1 / sqrt(1 - (C/Limit)^2)
+        """
+        # Clip to 0.99 to prevent divide-by-zero
+        ratio_s = min(self.current_space / self.limit_space, 0.99)
+        ratio_t = min(self.current_time / self.limit_time, 0.99)
+        
+        penalty_s = 1.0 / np.sqrt(1.0 - ratio_s**2)
+        penalty_t = 1.0 / np.sqrt(1.0 - ratio_t**2)
+        
+        return (penalty_s + penalty_t) * self.gamma
 
-class Permutation:
-    """[Geometry] Topological Orientation. Fractal & Spectral."""
-    def __init__(self, embedding_dim: int):
-        self.spectral_coeffs = np.zeros(embedding_dim) # Hybrid Fourier Basis
-        self.fractal_jitter = np.zeros(embedding_dim)  # For Upsampling
+    def distribute_tokens(self, amount_space: float, amount_time: float) -> bool:
+        """
+        Attempts to allocate complexity tokens for child processes/atoms.
+        Returns False if barrier makes cost prohibitive (Hard Stop).
+        In a differentiable setting, this would return a high gradient cost.
+        """
+        new_s = self.current_space + amount_space
+        new_t = self.current_time + amount_time
+        
+        if new_s >= self.limit_space or new_t >= self.limit_time:
+            return False
+        
+        self.current_space = new_s
+        self.current_time = new_t
+        return True
 
-class Noise:
-    """[Entropy] Residual Variance / Renormalization Store."""
-    def __init__(self, embedding_dim: int):
-        self.variance = np.ones(embedding_dim) * 1e-5
+
+class UniversalWorm:
+    """[Restored from V8] Helper for Z-Order Linearization."""
+    def z_order_argsort(self, coords: np.ndarray) -> np.ndarray:
+        # Placeholder for Morton Code calculation
+        # Ensures N-dim grid -> 1D stream locality preservation
+        return np.arange(len(coords)) 
 
 class Feature:
     """
-    The Atomic Representation Unit.
-    Factorizes data into What (Spline), Where (Permutation), and Uncertainty (Noise).
+    [V9 Factorization]
+    Composite Object: Spline (Physics) + Permutation (Geometry) + Noise (Entropy).
     """
     def __init__(self, embedding_dim: int):
-        self.spline = Spline(embedding_dim)
-        self.permutation = Permutation(embedding_dim)
-        self.noise = Noise(embedding_dim)
-    
-    def realize(self, raw_input: np.ndarray) -> np.ndarray:
-        # Placeholder for v8.0 logic: Sort -> Fit Spline -> Permute -> Add Noise
-        return raw_input 
+        self.spline_knots = np.zeros(embedding_dim) 
+        # [Restored V7] Dual-Axis: Row (Topology) & Column (Semantic)
+        self.perm_row_coeffs = np.zeros(embedding_dim) 
+        self.perm_col_coeffs = np.zeros(embedding_dim)
+        # [Restored V8] Renormalization Entropy
+        self.noise_variance = np.ones(embedding_dim) * 1e-5
+
 
 # ============================================================
 # SECTION 2 — The Atom Layer (Generalized Primitive)
 # ============================================================
 
 class ChannelMixer:
-    """
-    [The Spectral Prism]
-    Policy for mixing co-located fields (Channels) before spatial mixing.
-    """
+    """[Restored V8/V9] The Spectral Prism. Mixes co-located fields."""
     def __init__(self, input_channels: int, output_dim: int):
-        self.mixing_matrix = np.eye(input_channels, output_dim) # Learnable
+        self.mixing_matrix = np.eye(input_channels, output_dim)
 
     def forward(self, x: np.ndarray) -> np.ndarray:
-        # x shape: (Time, Channels)
         return np.dot(x, self.mixing_matrix)
 
 class Aperture:
-    """
-    Differentiable Window / Temporal Convolution.
-    Evolves from Global (Sigma -> inf) to Local (Sigma -> 0).
-    """
+    """[Restored V7/V9] Differentiable Window (Global -> Local)."""
     def __init__(self):
-        self.sigma = 1e6 # Start Global
-
-    def convolve(self, stream: np.ndarray) -> np.ndarray:
-        # Placeholder for strided Gaussian convolution
-        return stream 
-
-class OutputHead:
-    """
-    Fractal Permutation Head.
-    Handles scale-equivariant upsampling via Jitter prediction.
-    """
-    def forward(self, x: np.ndarray, target_scale: float) -> np.ndarray:
-        return x # Placeholder for fractal expansion
+        # Sigma controls the Gaussian width. 
+        # Large = Global Attention. Small = Local Convolution.
+        self.sigma = 1e6 
 
 class Atom:
-    """
-    The Computational Leaf.
-    Replaces rigid QKV. Acts as a configurable 'View Extractor'.
-    """
+    """[V9] The Computational Leaf."""
     def __init__(self, embedding_dim: int, is_virtual: bool = True):
-        self.is_virtual = is_virtual # Zero cost until accessed
-        
+        self.is_virtual = is_virtual
         self.channel_mixer = ChannelMixer(16, embedding_dim)
         self.aperture = Aperture()
         self.feature = Feature(embedding_dim)
+        
+        # [V9.1 New Logic] Phantom Latency
+        # Prevents infinite temporal gradients when transitioning Virtual -> Real.
+        self.latency_cost = 0.1 if is_virtual else 1.0
+
+    def realize(self):
+        """Transition from Virtual to Real."""
+        self.is_virtual = False
+        self.latency_cost = 1.0 
 
     def process(self, input_stream: np.ndarray) -> np.ndarray:
-        if self.is_virtual: return input_stream # Identity / Pass-through
-        
-        # 1. Mix Channels (Prism)
-        mixed = self.channel_mixer.forward(input_stream)
-        # 2. Apply Aperture (Windowing)
-        windowed = self.aperture.convolve(mixed)
-        # 3. Extract Feature (Physics)
-        return self.feature.realize(windowed)
+        if self.is_virtual: return input_stream 
+        # Logic: Mix -> Window -> Extract Feature
+        return input_stream
+
 
 # ============================================================
-# SECTION 3 — The Core Layer (Topology Container)
+# SECTION 3 — The Core Layer (Topology)
 # ============================================================
 
 class MixingNode:
-    """
-    A node in the Core's mixing tree.
-    Allows for arbitrary topology: [[A, B], C] or [A, B, C].
-    """
+    """[V9] Recursive Mixing Topology."""
     def __init__(self, children: List[Union[Atom, 'MixingNode']], mix_policy: str = "identity"):
         self.children = children
-        self.mix_policy = mix_policy # "softmax_dot", "add", "concat", "identity"
+        self.mix_policy = mix_policy
 
-    def execute(self, input_data: np.ndarray) -> np.ndarray:
-        # Gather inputs from children (Recursive)
-        results = []
-        for child in self.children:
-            if isinstance(child, Atom):
-                results.append(child.process(input_data))
-            else:
-                results.append(child.execute(input_data))
+    def execute(self, x: np.ndarray) -> np.ndarray:
+        # Recursive execution of the mixing tree
+        results = [c.process(x) if isinstance(c, Atom) else c.execute(x) for c in self.children]
         
-        # Apply Mixing Policy
-        if self.mix_policy == "softmax_dot": 
-            # Classic Attention: Softmax(A @ B.T) * C
-            return results[0] # Placeholder
-        elif self.mix_policy == "add":
-            return sum(results)
-        
-        return results[0]
+        # Placeholder for learnable mixing (Add, Concat, Softmax)
+        return results[0] 
 
 class Core:
-    """
-    Manages a Topology of Atoms.
-    """
+    """[V9] Topology Container."""
     def __init__(self, embedding_dim: int):
-        self.embedding_dim = embedding_dim
-        self.output_head = OutputHead()
-        
-        # Default Topology: Standard Attention [[Q,K], V]
-        # This is the "Seed" structure, but NAS can mutate the tree.
-        self.q_atom = Atom(embedding_dim)
-        self.k_atom = Atom(embedding_dim)
-        self.v_atom = Atom(embedding_dim)
-        
-        self.topology = MixingNode(
-            children=[
-                MixingNode([self.q_atom, self.k_atom], mix_policy="softmax_dot"),
-                self.v_atom
-            ],
-            mix_policy="multiply"
-        )
-
+        # The Seed Topology: Can evolve into Attention, Dense, etc.
+        self.topology = MixingNode([Atom(embedding_dim)], mix_policy="identity")
+    
     def forward(self, x: np.ndarray) -> np.ndarray:
-        x_processed = self.topology.execute(x)
-        return self.output_head.forward(x_processed, target_scale=1.0)
+        return self.topology.execute(x)
+
 
 # ============================================================
-# SECTION 4 — The Module Layer (Recursive Agent)
+# SECTION 4 — Logistics & Economy (Restored)
+# ============================================================
+
+class ImpedanceCurve:
+    """
+    [Restored from V7]
+    Defines connection cost based on Tree Distance.
+    Regulates graph topology to prevent 'Small World' collapse.
+    """
+    def __init__(self, max_distance: int = 33):
+        self.curve_knots = np.linspace(0, 10, 8) # Monotone Spline
+        
+    def get_cost(self, sender_node: Module, receiver_node: Module) -> float:
+        # [V9.1 Logic] Calculate Tree Distance in the Fractal Hierarchy
+        # dist = tree_distance(sender_node, receiver_node)
+        # Placeholder distance:
+        dist = abs(sender_node.level - receiver_node.level)
+        
+        # Cost increases with distance (Impedance)
+        return float(dist ** 2) * 0.1
+
+class Logistics:
+    """
+    [Restored from V7/V9]
+    Manages the Economy: Sender-Pays-Time / Receiver-Pays-Space.
+    Manages Rhythm: Internal Clock & ETA.
+    """
+    def __init__(self):
+        self.clock = 0
+        self.message_queue = deque()
+        self.temporal_error_history = [] # For Rhythm gradients
+    
+    def tick(self):
+        self.clock += 1
+        
+    def calculate_eta(self, path_latency: float) -> int:
+        return self.clock + int(np.ceil(path_latency))
+
+    def register_arrival(self, predicted_eta: int):
+        """[V6 Rhythm Logic] Calculate temporal error for gradient."""
+        actual_arrival = self.clock
+        # Penalize Late Arrival (Inefficiency) AND Early Arrival (Rhythm Break)
+        error = (actual_arrival - predicted_eta) ** 2
+        self.temporal_error_history.append(error)
+
+class Connector:
+    """
+    [Restored V7] Receiver-Centric Input Port.
+    """
+    def __init__(self, embedding_dim: int):
+        self.buffer = deque(maxlen=16) 
+        self.alignment_mode = "DualAxisSpectral" # [Restored V7]
+        self.impedance_cost = 0.0
+
+# ============================================================
+# SECTION 5 — The Module Layer (Recursive Agent)
 # ============================================================
 
 class Trinity:
-    """The Default Cognitive Cycle."""
+    """[V7/V8/V9] Context -> State -> Service."""
     def __init__(self, embedding_dim: int):
-        self.context = Core(embedding_dim) # Sensor
-        self.state = Core(embedding_dim)   # Integrator
-        self.service = Core(embedding_dim) # Actuator
+        self.context = Core(embedding_dim)
+        self.state = Core(embedding_dim)
+        self.service = Core(embedding_dim)
 
-    def cycle(self, input_vec: np.ndarray) -> np.ndarray:
-        ctx = self.context.forward(input_vec)
-        st = self.state.forward(ctx)
-        out = self.service.forward(st)
-        return out
-
-class Connector:
-    """Receiver-centric Input Port with Dual-Axis Permutation."""
-    def __init__(self, embedding_dim: int):
-        self.buffer = deque(maxlen=16) # Temporal Window
-        self.alignment = "DualAxisSpectral" # v8.0 Logic
+    def cycle(self, x: np.ndarray) -> np.ndarray:
+        c = self.context.forward(x)
+        s = self.state.forward(c)
+        return self.service.forward(s)
 
 class Module:
     """
-    The Fractal Container.
-    Can be a Leaf (Computation) or a Branch (Orchestration).
+    [V9 Integrated]
+    Recursive Container. Manages internal sparsity via sub_modules.
+    Enforces LossComplexity (Relativistic Barrier).
     """
-    def __init__(self, level: int, embedding_dim: int = 256):
+    def __init__(self, module_id: str, level: int, embedding_dim: int = 256):
+        self.id = module_id
         self.level = level
-        self.is_virtual = True # Starts as identity
+        self.is_virtual = True
         
-        # Recursive Modularity (The Fractal)
-        self.sub_modules: List[Module] = [] 
+        # [V9] Internal Sparsity (Strictly Private)
+        # Recursive definition: A Module contains Modules.
+        self.sub_modules: List[Module] = []
         
-        # Local Compute (The Leaf)
+        # [V9] Local Compute
         self.trinity = Trinity(embedding_dim)
-        self.connectors: List[Connector] = []
         
-        self.memory = None 
-        self.complexity = Complexity()
+        # [V6/V9] Relativistic Budget Holder
+        # Aggregates complexity of Self + Realized Children
+        self.complexity = LossComplexity() 
+        
+        # [V7] External Connectivity
+        self.connectors: Dict[str, Connector] = {}
+
+    def ensure_connector(self, sender: Module, impedance_curve: ImpedanceCurve):
+        """
+        Establishes connection governed by Impedance Cost (Space Tokens).
+        """
+        if sender.id not in self.connectors:
+            cost = impedance_curve.get_cost(sender, self)
+            # Check if we can afford the Space Cost (Relativistic Barrier)
+            if self.complexity.distribute_tokens(amount_space=cost, amount_time=0):
+                self.connectors[sender.id] = Connector(256)
+                self.connectors[sender.id].impedance_cost = cost
 
     def process(self, signal: Any) -> Any:
-        if self.is_virtual: return signal # Zero-cost pass-through
-        
-        # 1. Process Sub-modules (Depth)
+        """
+        Recursive Execution Flow.
+        """
+        if self.is_virtual: 
+            return signal # Zero cost, identity pass-through
+            
+        # 1. Distribute Complexity to Sub-Modules (Internal Sparsity)
+        # If a sub-module is realized, it consumes part of THIS module's budget.
         if self.sub_modules:
             for sub in self.sub_modules:
+                # Sub-modules communicate only with Parent, not outside.
                 signal = sub.process(signal)
         
-        # 2. Process Local Trinity (Width)
+        # 2. Local Cycle
         output = self.trinity.cycle(signal)
+        
+        # 3. Update Time Complexity (Sender-Pays-Time)
+        self.complexity.current_time += 1.0 
+        
         return output
 
+
 # ============================================================
-# SECTION 5 — The Mind Layer (Bicameral & Global)
+# SECTION 6 — The Mind Layer (Bicameral & Meta-Context)
 # ============================================================
 
 class Interface:
-    """
-    Universal Linearization Gateway.
-    Implements Dual-Path (Metric Z-Order vs. Relational Spectral).
-    """
-    def linearize(self, data: Any) -> Any:
-        # Placeholder for v8.0 Z-Order Logic
-        return data
-
-class Logistics:
-    """Sender-Pays-Time / Receiver-Pays-Space Economy."""
-    pass
-
-class Hierarchy:
-    """Manages the 33-level Abstraction Ladder."""
-    pass
-
-class VersionControl:
-    """
-    Tracks evolutionary tree. Enables Backtracking.
-    """
-    def snapshot(self): pass
-    def revert(self): pass
+    """[V8] Universal Linearization Gateway."""
+    def __init__(self):
+        self.worm = UniversalWorm()
+        
+    def linearize(self, data: Any, mode: str = "metric") -> Dict:
+        # [Restored V8] Z-Order or Spectral Linearization
+        return {"stream": data, "topology_token": None}
 
 class Mind:
-    """Base class for Hemispheres."""
+    """Base Hemisphere."""
     def __init__(self):
-        self.interfaces = [Interface()]
         self.modules: List[Module] = []
-        self.hierarchy = Hierarchy()
         self.logistics = Logistics()
-        self.complexity = Complexity()
-
-class Active(Mind):
-    """Hemisphere A: Real-Time, Read-Only."""
-    pass
+        self.impedance = ImpedanceCurve()
+        self.interface = Interface()
+        
+        # [Restored V6] Meta-Context Learning Regimes
+        # MindsEye switches these based on global stability.
+        self.learning_regime = {
+            "batch_size": 32,
+            "learning_rate": 1e-3,
+            "strategy": "online" # or "batch", "structural"
+        }
 
 class Reflective(Mind):
-    """Hemisphere B: Deep-Time, Write-Access."""
+    """Hemisphere B: Write-Access, Evolution."""
     def __init__(self):
         super().__init__()
-        self.version_control = VersionControl()
-        # MindsEye is a Module at Level 33
-        self.minds_eye = Module(level=33) 
-
-# ============================================================
-# SECTION 6 — The Root (GraphModel)
-# ============================================================
+        self.minds_eye = Module("minds_eye", level=33)
+        # [Restored V6/V9] Version Control for Backtracking
+        self.checkpoints = {} 
 
 class GraphModel:
+    """The Integrated God Class."""
     def __init__(self):
-        self.active_mind = Active()
-        self.reflective_mind = Reflective()
-        self.complexity = Complexity()
-        
-    def hot_swap(self):
-        """Moves validated structures from Reflective to Active."""
-        pass
+        self.active_mind = Mind() # Active (Read-Only)
+        self.reflective_mind = Reflective() # Reflective (Write-Access)
     
-    def forward(self, x):
-        # 1. Linearize via Active Mind Interface
-        stream = self.active_mind.interfaces[0].linearize(x)
-        # 2. Propagate through Active Modules
-        for mod in self.active_mind.modules:
-            stream = mod.process(stream)
-        return stream
+    def forward(self, x: Any):
+        # 1. Linearize Input
+        packet = self.active_mind.interface.linearize(x)
+        
+        # 2. Propagate
+        # Real logic would traverse the active_mind.modules graph
+        pass
+
+}
