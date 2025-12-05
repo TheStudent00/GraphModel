@@ -1,297 +1,292 @@
 # Graph Model Implementation Notes
-# Version 8.0 - Includes Spectral Prism, Z-Order Linearization & Fractal Equivariance
+# Version 9.0 — Grand Unification (Recursive, Virtual, & Physical)
 
 from __future__ import annotations
-from typing import Dict, List, Optional, Any, Tuple, Deque, Union
+from typing import List, Dict, Optional, Any, Union, Tuple, Deque
 from collections import deque
 import numpy as np
 
 # ============================================================
-# SECTION 1 — Universal Linearization (The Interface)
+# SECTION 1 — The Physics Layer (Universal Representations)
 # ============================================================
 
-class TopologyToken:
+class Complexity:
     """
-    Metadata describing the original structure of the linearized data.
-    Allows the Receiver to select the correct Basis Functions.
+    Tracks the Dual-Cost of existence.
+    Separates Runtime (Op) cost from Evolutionary (Learn) cost.
     """
-    def __init__(self, mode: str, shape: Optional[Tuple] = None, meta: Optional[Dict] = None):
-        self.mode = mode  # "metric" (Grid) or "relational" (Graph)
-        self.shape = shape # e.g., (3, 16, 16) for Metric [Channels, H, W]
-        self.meta = meta   # e.g., {"n_nodes": 1024} for Relational
+    def __init__(self):
+        self.operating_bounds = {"space": 1e6, "time": 100} 
+        self.learning_bounds = {"space": 1e9, "time": 1000}
+        self.op_cost = {"space": 0.0, "time": 0.0} 
+        self.learn_cost = {"space": 0.0, "time": 0.0}
 
-class UniversalWorm:
+class Spline:
+    """[Physics] Magnitude Distribution. Scale Invariant."""
+    def __init__(self, embedding_dim: int):
+        self.knots = np.zeros(embedding_dim) # Monotone initialization
+
+class Permutation:
+    """[Geometry] Topological Orientation. Fractal & Spectral."""
+    def __init__(self, embedding_dim: int):
+        self.spectral_coeffs = np.zeros(embedding_dim) # Hybrid Fourier Basis
+        self.fractal_jitter = np.zeros(embedding_dim)  # For Upsampling
+
+class Noise:
+    """[Entropy] Residual Variance / Renormalization Store."""
+    def __init__(self, embedding_dim: int):
+        self.variance = np.ones(embedding_dim) * 1e-5
+
+class Feature:
     """
-    Helper for Metric Z-Order Linearization.
+    The Atomic Representation Unit.
+    Factorizes data into What (Spline), Where (Permutation), and Uncertainty (Noise).
     """
-    def z_order_argsort(self, coords: np.ndarray) -> np.ndarray:
-        """
-        Computes Z-order (Morton) argsort for N-dimensional coordinates.
-        Input: coords (N_points, D) - discrete grid coordinates
-        Returns: indices that sort the points along the Z-curve.
-        """
-        coords = coords.astype(np.uint32)
-        N, D = coords.shape
-        max_val = np.max(coords) if N > 0 else 0
-        bits = int(np.ceil(np.log2(max_val + 1))) if max_val > 0 else 1
+    def __init__(self, embedding_dim: int):
+        self.spline = Spline(embedding_dim)
+        self.permutation = Permutation(embedding_dim)
+        self.noise = Noise(embedding_dim)
+    
+    def realize(self, raw_input: np.ndarray) -> np.ndarray:
+        # Placeholder for v8.0 logic: Sort -> Fit Spline -> Permute -> Add Noise
+        return raw_input 
+
+# ============================================================
+# SECTION 2 — The Atom Layer (Generalized Primitive)
+# ============================================================
+
+class ChannelMixer:
+    """
+    [The Spectral Prism]
+    Policy for mixing co-located fields (Channels) before spatial mixing.
+    """
+    def __init__(self, input_channels: int, output_dim: int):
+        self.mixing_matrix = np.eye(input_channels, output_dim) # Learnable
+
+    def forward(self, x: np.ndarray) -> np.ndarray:
+        # x shape: (Time, Channels)
+        return np.dot(x, self.mixing_matrix)
+
+class Aperture:
+    """
+    Differentiable Window / Temporal Convolution.
+    Evolves from Global (Sigma -> inf) to Local (Sigma -> 0).
+    """
+    def __init__(self):
+        self.sigma = 1e6 # Start Global
+
+    def convolve(self, stream: np.ndarray) -> np.ndarray:
+        # Placeholder for strided Gaussian convolution
+        return stream 
+
+class OutputHead:
+    """
+    Fractal Permutation Head.
+    Handles scale-equivariant upsampling via Jitter prediction.
+    """
+    def forward(self, x: np.ndarray, target_scale: float) -> np.ndarray:
+        return x # Placeholder for fractal expansion
+
+class Atom:
+    """
+    The Computational Leaf.
+    Replaces rigid QKV. Acts as a configurable 'View Extractor'.
+    """
+    def __init__(self, embedding_dim: int, is_virtual: bool = True):
+        self.is_virtual = is_virtual # Zero cost until accessed
         
-        z_codes = []
-        for i in range(N):
-            code = 0
-            for b in range(bits):
-                for d in range(D):
-                    # Interleave bits
-                    bit = (coords[i, d] >> b) & 1
-                    code |= bit << (b * D + d)
-            z_codes.append(code)
-        return np.argsort(z_codes)
+        self.channel_mixer = ChannelMixer(16, embedding_dim)
+        self.aperture = Aperture()
+        self.feature = Feature(embedding_dim)
+
+    def process(self, input_stream: np.ndarray) -> np.ndarray:
+        if self.is_virtual: return input_stream # Identity / Pass-through
+        
+        # 1. Mix Channels (Prism)
+        mixed = self.channel_mixer.forward(input_stream)
+        # 2. Apply Aperture (Windowing)
+        windowed = self.aperture.convolve(mixed)
+        # 3. Extract Feature (Physics)
+        return self.feature.realize(windowed)
+
+# ============================================================
+# SECTION 3 — The Core Layer (Topology Container)
+# ============================================================
+
+class MixingNode:
+    """
+    A node in the Core's mixing tree.
+    Allows for arbitrary topology: [[A, B], C] or [A, B, C].
+    """
+    def __init__(self, children: List[Union[Atom, 'MixingNode']], mix_policy: str = "identity"):
+        self.children = children
+        self.mix_policy = mix_policy # "softmax_dot", "add", "concat", "identity"
+
+    def execute(self, input_data: np.ndarray) -> np.ndarray:
+        # Gather inputs from children (Recursive)
+        results = []
+        for child in self.children:
+            if isinstance(child, Atom):
+                results.append(child.process(input_data))
+            else:
+                results.append(child.execute(input_data))
+        
+        # Apply Mixing Policy
+        if self.mix_policy == "softmax_dot": 
+            # Classic Attention: Softmax(A @ B.T) * C
+            return results[0] # Placeholder
+        elif self.mix_policy == "add":
+            return sum(results)
+        
+        return results[0]
+
+class Core:
+    """
+    Manages a Topology of Atoms.
+    """
+    def __init__(self, embedding_dim: int):
+        self.embedding_dim = embedding_dim
+        self.output_head = OutputHead()
+        
+        # Default Topology: Standard Attention [[Q,K], V]
+        # This is the "Seed" structure, but NAS can mutate the tree.
+        self.q_atom = Atom(embedding_dim)
+        self.k_atom = Atom(embedding_dim)
+        self.v_atom = Atom(embedding_dim)
+        
+        self.topology = MixingNode(
+            children=[
+                MixingNode([self.q_atom, self.k_atom], mix_policy="softmax_dot"),
+                self.v_atom
+            ],
+            mix_policy="multiply"
+        )
+
+    def forward(self, x: np.ndarray) -> np.ndarray:
+        x_processed = self.topology.execute(x)
+        return self.output_head.forward(x_processed, target_scale=1.0)
+
+# ============================================================
+# SECTION 4 — The Module Layer (Recursive Agent)
+# ============================================================
+
+class Trinity:
+    """The Default Cognitive Cycle."""
+    def __init__(self, embedding_dim: int):
+        self.context = Core(embedding_dim) # Sensor
+        self.state = Core(embedding_dim)   # Integrator
+        self.service = Core(embedding_dim) # Actuator
+
+    def cycle(self, input_vec: np.ndarray) -> np.ndarray:
+        ctx = self.context.forward(input_vec)
+        st = self.state.forward(ctx)
+        out = self.service.forward(st)
+        return out
+
+class Connector:
+    """Receiver-centric Input Port with Dual-Axis Permutation."""
+    def __init__(self, embedding_dim: int):
+        self.buffer = deque(maxlen=16) # Temporal Window
+        self.alignment = "DualAxisSpectral" # v8.0 Logic
+
+class Module:
+    """
+    The Fractal Container.
+    Can be a Leaf (Computation) or a Branch (Orchestration).
+    """
+    def __init__(self, level: int, embedding_dim: int = 256):
+        self.level = level
+        self.is_virtual = True # Starts as identity
+        
+        # Recursive Modularity (The Fractal)
+        self.sub_modules: List[Module] = [] 
+        
+        # Local Compute (The Leaf)
+        self.trinity = Trinity(embedding_dim)
+        self.connectors: List[Connector] = []
+        
+        self.memory = None 
+        self.complexity = Complexity()
+
+    def process(self, signal: Any) -> Any:
+        if self.is_virtual: return signal # Zero-cost pass-through
+        
+        # 1. Process Sub-modules (Depth)
+        if self.sub_modules:
+            for sub in self.sub_modules:
+                signal = sub.process(signal)
+        
+        # 2. Process Local Trinity (Width)
+        output = self.trinity.cycle(signal)
+        return output
+
+# ============================================================
+# SECTION 5 — The Mind Layer (Bicameral & Global)
+# ============================================================
 
 class Interface:
     """
-    The Gateway. Converts raw data into Linearized Streams + Topology Tokens.
-    Implements the Dual-Path Logic (Metric vs. Relational).
+    Universal Linearization Gateway.
+    Implements Dual-Path (Metric Z-Order vs. Relational Spectral).
     """
-    def __init__(self, embedding_dim: int = 256):
-        self.embedding_dim = embedding_dim
-        self.worm_helper = UniversalWorm()
+    def linearize(self, data: Any) -> Any:
+        # Placeholder for v8.0 Z-Order Logic
+        return data
 
-    def linearize(self, data: np.ndarray, adjacency: Optional[np.ndarray] = None) -> Dict[str, Any]:
-        """
-        Universal Pre-processor.
-        Input data is assumed to be (Channels, D1, D2...) for metric, or (Nodes, Feats) for relational.
-        """
-        if adjacency is not None:
-            return self._spectral_linearize(data, adjacency)
-        else:
-            return self._z_order_linearize(data)
+class Logistics:
+    """Sender-Pays-Time / Receiver-Pays-Space Economy."""
+    pass
 
-    def _z_order_linearize(self, data: np.ndarray) -> Dict[str, Any]:
-        """
-        Metric Path (Fast O(N)).
-        Handles Channels as Co-located Fields (Independent Linearization).
-        """
-        # Assumes data shape is (Channels, D1, D2...)
-        # We linearize the SPATIAL dimensions (D1, D2...)
-        full_shape = data.shape
-        num_channels = full_shape[0]
-        spatial_shape = full_shape[1:]
-        
-        # 1. Generate Grid Coordinates for one Spatial Plane
-        coords = np.indices(spatial_shape).reshape(len(spatial_shape), -1).T
-        
-        # 2. Compute Z-Order for Space
-        sort_idx = self.worm_helper.z_order_argsort(coords)
-        
-        # 3. Apply Z-Order to EACH Channel independently (Stack of Worms)
-        linearized_channels = []
-        for c in range(num_channels):
-            channel_flat = data[c].flatten()
-            linearized_channels.append(channel_flat[sort_idx])
-            
-        # Result: (Channels, Total_Spatial_Points)
-        stream_stack = np.stack(linearized_channels)
-        
-        token = TopologyToken(mode="metric", shape=full_shape)
-        return {"stream": stream_stack, "topology": token}
+class Hierarchy:
+    """Manages the 33-level Abstraction Ladder."""
+    pass
 
-    def _spectral_linearize(self, data: np.ndarray, adjacency: np.ndarray) -> Dict[str, Any]:
-        """
-        Relational Path (Graph Topology).
-        Placeholder for Laplacian Eigenmap logic.
-        """
-        # 1. Compute Laplacian L = D - A
-        # 2. Eigen decomposistion, find Fiedler vector
-        # 3. sort_idx = argsort(fiedler_vector)
-        # Placeholder:
-        linear_stream = data.flatten() 
-        token = TopologyToken(mode="relational", meta={"nodes": len(data)})
-        return {"stream": linear_stream, "topology": token}
+class VersionControl:
+    """
+    Tracks evolutionary tree. Enables Backtracking.
+    """
+    def snapshot(self): pass
+    def revert(self): pass
 
+class Mind:
+    """Base class for Hemispheres."""
+    def __init__(self):
+        self.interfaces = [Interface()]
+        self.modules: List[Module] = []
+        self.hierarchy = Hierarchy()
+        self.logistics = Logistics()
+        self.complexity = Complexity()
+
+class Active(Mind):
+    """Hemisphere A: Real-Time, Read-Only."""
+    pass
+
+class Reflective(Mind):
+    """Hemisphere B: Deep-Time, Write-Access."""
+    def __init__(self):
+        super().__init__()
+        self.version_control = VersionControl()
+        # MindsEye is a Module at Level 33
+        self.minds_eye = Module(level=33) 
 
 # ============================================================
-# SECTION 2 — Fractal Feature Factorization
-# ============================================================
-
-class FractalPermutationHead:
-    """
-    Replaces SplineStochasticHead.
-    Models Scale Equivariance: Unfolds Low-Res geometry into High-Res geometry
-    using learned Jitter (Entropy -> Geometry flow).
-    """
-    def __init__(self, embedding_dim: int) -> None:
-        self.embedding_dim = embedding_dim
-        # Predicts high-freq rank offsets based on low-freq content
-        self.jitter_predictor = np.random.randn(embedding_dim, embedding_dim) * 0.01
-        self.scale_gate = 0.0 # Learnable magnitude of jitter
-
-    def forward(self, x: np.ndarray, target_scale_factor: float = 2.0) -> np.ndarray:
-        # A. Base Upsampling (Interpolation of the Basis)
-        x_upsampled = x # Placeholder for basis expansion
-        
-        # B. Predict Fractal Jitter
-        jitter = np.tanh(x @ self.jitter_predictor)
-        
-        # C. Apply Jitter (Conservation of Information)
-        # Strength depends on how deep we are zooming
-        jitter_strength = np.log2(target_scale_factor) * self.scale_gate
-        
-        return x_upsampled + (jitter * jitter_strength)
-
-
-class SplineBank:
-    """
-    Encodes the 'Physics' (Magnitude Distribution).
-    Scale Invariant by definition.
-    """
-    def __init__(self, num_splines: int, embedding_dim: int) -> None:
-        self.num_splines = num_splines
-        self.spline_params = np.zeros((num_splines, embedding_dim))
-
-    def get_spline_embedding(self, x: np.ndarray) -> np.ndarray:
-        # Sort -> Fit Spline -> Sample
-        sorted_x = np.sort(x)
-        return sorted_x 
-
-
-# ============================================================
-# SECTION 3 — Layers, Prisms & Routing
-# ============================================================
-
-class SpectralPrism:
-    """
-    The Channel Mixer.
-    Located at the Core's entry point.
-    Allows the Module to define its policy for fusing Co-located Fields.
-    """
-    def __init__(self, embedding_dim: int, max_channels: int = 16):
-        self.embedding_dim = embedding_dim
-        # Learnable Mixing Matrix (The Policy)
-        self.mixing_matrix = np.eye(max_channels, embedding_dim) 
-
-    def refract(self, worm_stack: np.ndarray) -> np.ndarray:
-        """
-        Input: Stack of Worms (Channels, Sequence_Len)
-        Output: Mixed Sequence (Sequence_Len, Embedding_Dim)
-        """
-        # Transpose to (Seq, Channels) then Mix
-        # Output: (Seq, Embedding_Dim)
-        if worm_stack.ndim == 1: worm_stack = worm_stack[None, :]
-        return np.dot(worm_stack.T, self.mixing_matrix[:len(worm_stack)])
-
-
-class Connector:
-    """
-    Managed by the Receiver.
-    Handles buffering of Streams (Sequence) and Topology interpretation.
-    """
-    def __init__(self, embedding_dim: int, temporal_window: int = 16) -> None:
-        self.embedding_dim = embedding_dim
-        self.temporal_window = temporal_window # Capacity for Super-Resolution Streams
-        self.buffer: Deque = deque(maxlen=temporal_window)
-        self.topology: Optional[TopologyToken] = None
-
-    def receive(self, content: np.ndarray, topology: TopologyToken) -> None:
-        self.topology = topology # Store metadata for Basis selection
-        # content is (Channels, Length)
-        # We append slices of length (columns) to buffer
-        # Buffer stores "Time Steps", where each step is a Vector of Channels
-        if content.ndim > 1:
-            # Transpose to (Length, Channels) to iterate time
-            time_stream = content.T 
-            for t_step in time_stream:
-                self.buffer.append(t_step)
-
-    def get_aligned_window(self) -> np.ndarray:
-        """
-        Returns the buffer as a Sequence for the Context Core.
-        Format: (Time, Channels)
-        """
-        if not self.buffer:
-            return np.zeros((1, 1)) # Empty
-        return np.stack(self.buffer)
-
-
-# ============================================================
-# SECTION 4 — The Core (Universal Operator)
-# ============================================================
-
-class Core:
-    def __init__(self, embedding_dim: int) -> None:
-        self.embedding_dim = embedding_dim
-        self.prism = SpectralPrism(embedding_dim) # Channel Mixer
-        self.spline_bank = SplineBank(16, embedding_dim)
-        self.fractal_head = FractalPermutationHead(embedding_dim) # Scale Equivariance
-        self.output_scale = 1.0
-
-    def forward(self, x_stream: np.ndarray, state_context: Optional[np.ndarray] = None) -> np.ndarray:
-        """
-        x_stream: (Time, Channels) - Raw Input
-        """
-        # 1. Spectral Prism (Mix Channels -> Embedding Space)
-        # Result: (Time, Embedding_Dim)
-        mixed_stream = self.prism.refract(x_stream.T) 
-        
-        # 2. Spline Encode (Physics) on the mixed vectors
-        # (Simplified: applying to last step or aggregated step)
-        embedding = self.spline_bank.get_spline_embedding(mixed_stream[-1])
-        
-        # ... Attention / Processing ...
-        
-        # 3. Fractal Scale Equivariance (Geometry Reconstruction)
-        embedding = self.fractal_head.forward(embedding)
-        
-        return embedding * self.output_scale
-
-
-# ============================================================
-# SECTION 5 — Module (The Trinity)
-# ============================================================
-
-class Module:
-    def __init__(self, module_id: str, embedding_dim: int, level: int = 0) -> None:
-        self.id = module_id
-        self.context_core = Core(embedding_dim)
-        self.state_core = Core(embedding_dim)
-        self.service_core = Core(embedding_dim)
-        self.input_connectors: Dict[str, Connector] = {}
-        self.current_state = np.zeros(embedding_dim)
-
-    def receive_message(self, sender_id: str, content: np.ndarray, topology: TopologyToken) -> None:
-        if sender_id not in self.input_connectors:
-            self.input_connectors[sender_id] = Connector(self.context_core.embedding_dim)
-        self.input_connectors[sender_id].receive(content, topology)
-
-    def process_tick(self) -> Tuple[np.ndarray, TopologyToken]:
-        # 1. Context Phase (Aggregates Streams)
-        # Context Core aggregates sequences (Time) and Channels (Fields)
-        # Logic simplified for scaffold
-        for conn in self.input_connectors.values():
-            window = conn.get_aligned_window() # (Time, Channels)
-            context_vec = self.context_core.forward(window)
-        
-        # ... Processing Logic ...
-        
-        output_vec = self.service_core.forward(np.atleast_2d(self.current_state).T)
-        out_token = TopologyToken(mode="metric", shape=(1, self.context_core.embedding_dim))
-        
-        return output_vec, out_token
-
-
-# ============================================================
-# SECTION 6 — GraphModel Container
+# SECTION 6 — The Root (GraphModel)
 # ============================================================
 
 class GraphModel:
-    def __init__(self, embedding_dim: int) -> None:
-        self.interface = Interface(embedding_dim)
-        self.modules: Dict[str, Module] = {}
-        self.modules["input"] = Module("input", embedding_dim)
-
-    def forward(self, raw_input: np.ndarray, adjacency: Optional[np.ndarray] = None) -> Any:
-        # 1. Universal Linearization
-        packet = self.interface.linearize(raw_input, adjacency)
+    def __init__(self):
+        self.active_mind = Active()
+        self.reflective_mind = Reflective()
+        self.complexity = Complexity()
         
-        # 2. Input Module Receive
-        self.modules["input"].receive_message("env", packet["stream"], packet["topology"])
-        
-        return None
+    def hot_swap(self):
+        """Moves validated structures from Reflective to Active."""
+        pass
+    
+    def forward(self, x):
+        # 1. Linearize via Active Mind Interface
+        stream = self.active_mind.interfaces[0].linearize(x)
+        # 2. Propagate through Active Modules
+        for mod in self.active_mind.modules:
+            stream = mod.process(stream)
+        return stream
