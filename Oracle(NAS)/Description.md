@@ -1,8 +1,9 @@
 # Graph Model Intellectual Property (IP) Description
+**Version 9.0 — Grand Unification (Recursive, Virtual, & Physical)**
 
 This document captures the conceptual, architectural, and theoretical foundations of the Graph Model Oracle, defining the novel components, structural primitives, and meta-learning dynamics protected under the OTU Green License.
 
-The Graph Model is a general-purpose, modular, hierarchical learning system built from space-filling curve linearization, spline-standardized features, attention-based routing primitives, and fractal scale-equivariant dynamics. It is designed for sparse, flexible, expandable intelligence capable of processing any metric or relational data structure.
+The Graph Model is a general-purpose, modular, hierarchical learning system built from **Recursive Fractal Topology**, **Virtual Identity Primitives**, **Spline-Standardized Physics**, and **Generalized Mixing Atoms**. It is designed for sparse, flexible, expandable intelligence capable of processing any metric or relational data structure.
 
 ---
 
@@ -10,21 +11,15 @@ The Graph Model is a general-purpose, modular, hierarchical learning system buil
 
 This description asserts IP protection over:
 
-- the **Universal Linearization** process (Metric Z-Order vs. Relational Spectral),
-- the **Sub-Feature Factorization** into Spline (Physics), Permutation (Geometry), and Noise (Entropy),
-- the **Fractal Scale Equivariance** mechanism (Renormalization flow),
-- the Core/Module/MindsEye structural hierarchy (The Trinity Architecture),
-- the **Spectral Prism** channel-mixing policy,
-- the Bicameral (Hemispheric) Autopoietic Architecture,
-- attention-as-atomic-primitive routing embedded into modular computation,
-- the 33-level nascent abstraction hierarchy,
-- dynamic architecture search (NAS) with cloning, merging, and complexity gradients,
-- overlap management and symmetry-breaking mechanisms,
-- internal memory compression/expansion logic,
-- module-to-module logistics (Sender-Time/Receiver-Space economy),
-- learnable permutation structures per contact (Dual-Axis),
-- meta-learning strategies for bootstrapping MindsEye,
-- and the general organizational logic of the Graph Model Oracle.
+- **The Recursive Fractal Architecture:** The nesting of Modules within Modules to arbitrary depth.
+- **Virtual Identity Mechanics:** The existence of architectural components (Atoms, Modules) in a zero-cost "Virtual" state until instantiated by evolutionary pressure.
+- **The Generalized Atomic Mixer:** A recursive topology of mixing nodes (Sequence of Series) replacing rigid QKV attention.
+- **Universal Linearization:** Z-Order (Metric) and Spectral (Relational) input linearization.
+- **Feature Factorization:** Decoupling features into Spline (Physics), Permutation (Geometry), and Noise (Entropy).
+- **Fractal Scale Equivariance:** The Renormalization flow between Geometry and Entropy.
+- **Bicameral Autopoiesis:** Active vs. Reflective Minds with Evolutionary Backtracking (Version Control).
+- **Logistics Economy:** Sender-Pays-Time / Receiver-Pays-Space.
+- **Channel Mixing Policy:** The "Spectral Prism" or learnable policy for combining co-located fields.
 
 General ML concepts are not claimed—only the novel structural organization and interplay.
 
@@ -32,146 +27,92 @@ General ML concepts are not claimed—only the novel structural organization and
 
 # 2. High-Level Summary
 
-The Graph Model is a modular learning substrate composed of interacting Modules, each containing specialized Cores responsible for state, context, service, and contact behaviors. It uses:
-
-- **Space-Filling Curve (SFC) Linearization** for universal input handling,
-- **Fractal Permutation Heads** for scale-equivariant upsampling,
-- atomic Q/K/V attention within each Core,
-- multi-level abstraction hierarchy,
-- dynamic module cloning and specialization,
-- multi-regime optimization,
-- and meta-learning governing self-modification.
+The Graph Model is no longer a flat graph but a **Fractal Organism**. It is composed of **Minds** (Hemispheres), which contain **Modules**, which may recursively contain **Sub-Modules**. The computational substrate is the **Core**, which organizes **Atoms** into flexible **Mixing Topologies**.
 
 The system aims to unify:
-
-- sparse modularity,
-- feature universality (Resolution/Dimension Invariance),
-- evolutionary architectural dynamics,
-- differentiable learning,
-- and agency-like request/response structures.
+- **Universal Physics:** (Splines/SFCs) ensuring data agnostic handling.
+- **Structural Plasticity:** (Virtual Identity) allowing the architecture to grow organically.
+- **Generalized Computation:** (Mixing Nodes) allowing the system to discover its own routing logic (Attention, Convolution, or Feedforward) rather than having it hardcoded.
 
 ---
 
-# 3. Core Architectural Components
+# 3. The Fractal Hierarchy
 
-## 3.1 Core (The Universal Operator)
+## 3.1 The Mind (Global Container)
+The highest level of abstraction, organized Bicamerally:
+1.  **Active Mind (Hemisphere A):** Real-time, read-only execution. Optimized for inference speed.
+2.  **Reflective Mind (Hemisphere B):** Deep-time, write-enabled simulation. Contains the **Version Control** system for evolutionary backtracking and the **MindsEye** executive module.
 
-A Core is the atomic computational operator. To ensure total universality, **Cores are agnostic to raw input dimension**. They rely on Universal Linearization to project variable-dimensional inputs into a fixed embedding space via "Worm" segments.
-
-Components:
-- **Factorized Feature Architecture:** Decoupling magnitude distributions (Splines), topological orientations (Fractal Permutations), and residual entropy (Noise).
-- **Spectral Prism (Channel Mixer):** A learnable mixing matrix at the input of the Core that allows the Module to define its own policy for combining co-located input fields (Channels).
-- **Parallel Q/K/V feature layers** for attention-based routing and transformation.
-- **Differentiable Gaussian Aperture** for smooth global-to-local evolution.
-- **Fractal Permutation Head:** Capabilities for stochastic upsampling and texture generation via learned jitter prediction.
-
-## 3.2 Module (The Trinity Architecture)
-
-To support robust agentic behavior, privacy, and temporal integration, every Module is composed of three specialized Cores forming a cognitive cycle:
-
-1.  **Context Core (The Grunt/Sensor):**
-    * *Role:* Perception and Filtering.
-    * *Function:* Aggregates inputs from all Connectors. It processes sequences of embeddings (Time) to handle super-resolution inputs and uses the **Spectral Prism** to fuse channels.
-    * *Output:* A compressed `Context_Vector`.
-2.  **State Core (The Operator/Nucleus):**
-    * *Role:* Identity, Memory, and Integration.
-    * *Function:* Takes the `Context_Vector` and updates the internal, recurrent `State_Vector`.
-    * *Privacy:* The State is **strictly private**. It allows the module to maintain a "Self" independent of its public output.
-3.  **Service Core (The Agent/API):**
-    * *Role:* Action and Response.
-    * *Function:* Takes the `State` and `Context` to generate specific outputs ("Services") for other modules. It acts as the "Diplomat," deciding what information to reveal.
-
-## 3.3 MindsEye (The Executive Module)
-
-MindsEye is a **High-Connectivity Module** located within the **Reflective Hemisphere** (see Section 18). It interacts with the graph via standard Connectors but controls the hyperparameters (Aperture $\sigma$, Connection $\lambda$) of other modules, embedding the "Governor" inside the "Government."
+## 3.2 The Module (Recursive Agent)
+A Module is a self-similar container that can act as a leaf node (performing computation via a Trinity) or a branch node (orchestrating Sub-Modules).
+* **Virtual Existence:** All Modules exist virtually (Identity function) by default, consuming zero complexity tokens until "painted" into reality by the NAS.
+* **The Trinity:** The default local computational cycle (Context $\to$ State $\to$ Service), which itself is a configurable topology.
 
 ---
 
-# 4. Universal Linearization and Feature Factorization
+# 4. The Computational Substrate
 
-A key innovation is the treatment of all data (Images, Audio, Graphs) as **Linearized Streams** with associated **Topology Tokens**.
+## 4.1 The Core (Topology Container)
+The Core is the unit of processing. Unlike traditional layers, it does not enforce a specific operation. It manages a **Mixing Topology**.
+* **Mixing Nodes:** A Core defines a tree of operations (e.g., `[[A, B], C]`).
+* **Learnable Policy:** The mixing function at every node is learnable (e.g., Softmax, Add, Multiply, Concatenate). This allows the Core to evolve from a simple Mixer to a Multi-Head Attention mechanism or a Dense Block.
 
-## 4.1 The Dual-Path Interface (Metric vs. Relational)
-The Interface linearizes data based on its fundamental nature, ensuring $O(N)$ efficiency where possible:
-1.  **Metric Path (The Fast Path):** For data with absolute coordinates (Images, Video, Voxel Grids). Uses **Z-Order (Morton) Curves** to linearize $N$-dimensions into 1D while preserving locality.
-    * *Channel Independence:* Spatial dimensions are linearized; Channel dimensions (co-located fields) are treated as stacked parallel streams to preserve spline smoothness.
-2.  **Relational Path (The Graph Path):** For data defined by connectivity (Social Nets, Molecules). Uses **Spectral Ordering** (Fiedler Vector) to linearize nodes based on graph topology.
-
-## 4.2 The Topology Token
-Every linearized stream is accompanied by a **Topology Token** (e.g., `shape=[3, 16, 16, 16]` or `adjacency_hash`). This allows the Receiver to interpret the 1D stream correctly (e.g., selecting 2D vs 3D permutation banks).
-
-## 4.3 Feature Factorization ("The Worm")
-The linearized stream is segmented into overlapping "Worms" (Macro-Segments, e.g., $L=64$). Each Worm is factorized:
-* **Spline (Physics):** The sorted magnitude distribution (Scale Invariant).
-* **Permutation (Geometry):** The rank order of the Z-curve indices (Fractal).
-* **Noise (Entropy):** The high-frequency residual lost during binning.
+## 4.2 The Atom (Generalized Primitive)
+The Atom is the leaf of the Core's topology. It replaces the rigid "Neuron" or "Attention Head."
+* **Channel Mixer (The Prism):** A learnable policy at the Atom's entry to fuse co-located fields (Channels) before spatial processing.
+* **Differentiable Aperture:** A striding, continuous window function ($\sigma$) that evolves from Global to Local reception.
+* **Feature Extraction:** The Atom extracts a **Factorized Feature** (Spline/Permutation/Noise) from the input stream.
 
 ---
 
-# 5. Attention as an Atomic Routing Primitive
+# 5. Universal Physics & Feature Factorization
 
-Attention ($Softmax(QK^T)V$) is the primitive operator inside every Core, used for routing, mixing, and specialization.
+## 5.1 Universal Linearization (The Interface)
+Data is ingested via a Dual-Path Interface to ensure $O(N)$ efficiency:
+1.  **Metric Path:** Uses **Z-Order (Morton) Curves** to linearize N-dimensional grids into 1D "Worms" while preserving locality.
+2.  **Relational Path:** Uses **Spectral Ordering** to linearize graph topologies.
 
----
+## 5.2 Feature Factorization
+Every "Feature" processed by an Atom is a composite object:
+* **Spline (Physics):** The magnitude distribution (Scale Invariant).
+* **Permutation (Geometry):** The topological ordering, modeled by **Spectral Permutation Families**.
+* **Noise (Entropy):** The residual variance, modeled by **Renormalization Flow**.
 
-# 11. Complexity Gradient and Logistics Economy
-
-### 11.1 The Sender-Time / Receiver-Space Economy
-To prevent spam:
-1.  **Sender Pays Time:** The cost of transport/latency and Linearization.
-2.  **Receiver Pays Space:** The cost of maintaining the Connector structure.
-
----
-
-# 12. Connector and Dual-Axis Permutation (Routing)
-
-Connections are managed by a **Connector** object owned by the *Receiver*.
-
-### 12.1 Dual-Axis Spectral Permutation
-Connectors align Sender/Receiver languages by permuting **Rows** (Topology) and **Columns** (Semantics) using spectral functions. The Basis functions for the permutation are selected dynamically based on the **Topology Token**.
-
-### 12.4 Temporal Aperture (Resolution as Sequence)
-Connectors maintain a **Sliding Buffer** of the last $T$ messages.
-* **Super-Resolution Handling:** If an input object exceeds the Native Resolution Limit ($L_{max}$), it is transmitted as a *Sequence* of vectors.
-* The Context Core's **Aperture** acts as a learnable convolution/downsampling filter over this sequence, allowing the module to trade Temporal Resolution for Spatial Fidelity.
+## 5.3 Fractal Scale Equivariance
+The system explicitly models the flow of information across scales:
+* **Downstream:** Geometry is smoothed into Entropy (Binning/Smoothing).
+* **Upstream:** Entropy is expanded into Geometry via **Fractal Permutation Heads** (Learned Jitter).
 
 ---
 
-# 16. Fractal Scale Equivariance and Renormalization
+# 6. Evolutionary Dynamics
 
-The system explicitly models Scale Equivariance as a flow between **Geometry** and **Entropy**.
+## 6.1 Virtual Identity & Nascent Hierarchy
+The system initializes with a "Nascent Hierarchy" of 33 levels. These levels consist of **Virtual Modules**.
+* **Zero-Cost:** Virtual components have no compute/memory cost.
+* **Exploration:** The NAS explores this potential space. When a Virtual Module is useful, it is "Realized" (allocated complexity tokens).
 
-### 16.1 The Renormalization Flow
-* **Downstream (Encoding):** High-Resolution Geometry is smoothed (Rank Smoothing/Binning). The lost detail becomes **Entropy (Noise)**.
-* **Upstream (Decoding):** Low-Resolution Geometry is expanded. The **Fractal Permutation Head** uses the Entropy parameter to predict and generate the missing High-Frequency Jitter (Texture).
+## 6.2 Version Control (Backtracking)
+The Reflective Mind maintains a phylogenetic tree of architectural states.
+* **Safety:** If a mutation (cloning/specialization) fails to improve utility, the system **Reverts** to a previous checkpoint.
+* **Optimization:** This prevents "drift" into local minima and allows for aggressive structural exploration.
 
-### 16.2 Native Resolution Limit
-The system defines a hard upper bound ($L_{max}$) for topological fidelity per vector. Information denser than this limit is handled either by **Binning** (increasing Entropy) or **Streaming** (increasing Sequence Length).
-
----
-
-# 18. Autopoiesis and Bicameral Topology
-
-The graph is organized into **Hemisphere A (Active)** and **Hemisphere B (Reflective)**.
-* **Active:** Real-time execution (Body).
-* **Reflective:** Simulation and Architecture (Mind).
-* **Hot-Swap:** Updates are simulated in B and propagated to A only upon verification.
+## 6.3 Logistics Economy
+* **Sender Pays Time:** Cost of serialization and latency.
+* **Receiver Pays Space:** Cost of maintaining Connectors and Buffers.
 
 ---
 
-# 19. IP Coverage Summary
+# 7. IP Coverage Summary
 
 Protected elements include:
-- Universal Linearization (Z-Order/Spectral Dual Path),
-- The Trinity Module Architecture (State/Context/Service),
-- Factorized Features (Spline/Fractal Permutation/Noise),
-- Fractal Scale Equivariance (Renormalization Flow),
-- Dual-Axis Connectors with Temporal Aperture,
-- Multi-Regime Optimization,
-- Hierarchical Virtual Identity,
-- Sender-Time/Receiver-Space Logistics,
-- Differentiable Aperture & Fractal Heads,
-- Spectral Prism Channel Mixing,
-- and the Autopoietic Bicameral Topology.
+- The **Recursive Fractal Architecture** (Modules within Modules).
+- **Virtual Identity** mechanics for zero-cost hierarchical potential.
+- The **Generalized Atomic Mixer** (Mixing Topology vs. Rigid QKV).
+- **Universal Linearization** (Z-Order/Spectral) and **Channel Mixing** (Prism).
+- **Feature Factorization** (Spline/Permutation/Noise).
+- **Fractal Scale Equivariance** (Renormalization Flow).
+- **Bicameral Autopoiesis** with **Version Control**.
+- The **Sender-Time/Receiver-Space** Logistics Economy.
 
-This document unifies all architectural components under a single protected conceptual framework.
+This document unifies the geometric physics of the signal with the recursive evolution of the structure.
