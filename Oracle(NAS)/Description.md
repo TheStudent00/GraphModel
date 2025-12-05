@@ -1,3 +1,7 @@
+{
+type: uploaded file
+fileName: Description_version_9_1.md
+fullContent:
 # Graph Model Intellectual Property (IP) Description
 **Version 9.1 — Grand Unification (Integrated Physics & Recursion)**
 
@@ -108,3 +112,4 @@ Protected elements include:
 - **Bicameral Autopoiesis** with **Version Control**.
 
 This document unifies the recursive structure with the physical and economic laws necessary for its stability.
+}
