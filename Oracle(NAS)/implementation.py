@@ -155,8 +155,13 @@ class Feature:
 
 class ChannelMixer:
     """[Restored V8/V9] The Spectral Prism. Mixes co-located fields."""
-    def __init__(self, input_channels: int, output_dim: int):
-        self.mixing_matrix = np.eye(input_channels, output_dim)
+    def __init__(self, input_channels: int, output_dim: int, init_mode: str = "identity"):
+        if init_mode == "identity":
+            self.mixing_matrix = np.eye(input_channels, output_dim)
+        else:
+            # Non-identity (Random/Orthogonal) for Query projections
+            # Small variance to start near-identity but with gradients
+            self.mixing_matrix = np.random.randn(input_channels, output_dim) * 0.02
 
     def forward(self, x: np.ndarray) -> np.ndarray:
         return np.dot(x, self.mixing_matrix)
@@ -164,22 +169,23 @@ class ChannelMixer:
 class Aperture:
     """[Restored V7/V9] Differentiable Window (Global -> Local)."""
     def __init__(self):
-        # Sigma controls the Gaussian width. 
-        # Large = Global Attention. Small = Local Convolution.
         self.sigma = 1e6 
 
 class Atom:
     """[V9] The Computational Leaf."""
-    def __init__(self, embedding_dim: int, is_virtual: bool = True):
+    def __init__(self, embedding_dim: int, is_virtual: bool = True, init_mode: str = "identity"):
         self.is_virtual = is_virtual
-        self.channel_mixer = ChannelMixer(16, embedding_dim)
+        
+        # [V9.2 Update] Initialization Control
+        # Q gets 'random', K/V get 'identity'
+        self.channel_mixer = ChannelMixer(16, embedding_dim, init_mode=init_mode)
+        
         self.aperture = Aperture()
         self.feature = Feature(embedding_dim)
         
         # [V9.2 Update] Hierarchical Position
         self.rope = CylindricalRoPE(embedding_dim, day_length=1024)
         
-        # [V9.1 New Logic] Phantom Latency
         self.latency_cost = 0.1 if is_virtual else 1.0
 
     def realize(self):
@@ -190,39 +196,104 @@ class Atom:
     def process(self, input_stream: np.ndarray, stream_offset: int = 0) -> np.ndarray:
         if self.is_virtual: return input_stream 
         
-        # [V9.2 Update] Apply Cylindrical Rotary Embedding before processing
+        # 1. Apply Cylindrical Rotary Embedding
         x = self.rope.apply(input_stream, start_index=stream_offset)
         
-        # Logic: Mix -> Window -> Extract Feature
-        # (This is where the Feature extraction logic would use the rotated x)
+        # 2. Spectral Mixing (Prism)
+        x = self.channel_mixer.forward(x)
+        
+        # (Future: Apply Aperture and Feature extraction here)
         return x
 
+# ============================================================
+# SECTION 3 — The Core Layer (Recursive Expression Tree)
+# ============================================================
 
-# ============================================================
-# SECTION 3 — The Core Layer (Topology)
-# ============================================================
+class LearnablePhi:
+    """
+    [V9.2 New Logic] Continuous Normalization Function.
+    Learns to be Identity, Softmax, or Tanh.
+    """
+    def __init__(self):
+        self.scale = 1.0
+        self.shift = 0.0
+        self.temperature = 1.0 
+
+    def apply(self, x: np.ndarray) -> np.ndarray:
+        x_affine = (x * self.scale) + self.shift
+        exp_x = np.exp(x_affine * self.temperature)
+        return exp_x / (np.sum(exp_x, axis=-1, keepdims=True) + 1e-6)
 
 class MixingNode:
-    """[V9] Recursive Mixing Topology."""
-    def __init__(self, children: List[Union[Atom, 'MixingNode']], mix_policy: str = "identity"):
+    """
+    [V9.2 New Logic] The Recursive N-ary Operator.
+    Executes children then performs sequential reduction.
+    """
+    def __init__(self, children: List[Union['MixingNode', Atom]]):
         self.children = children
-        self.mix_policy = mix_policy
+        # One Phi for each mixing step in the pipe
+        self.phis = [LearnablePhi() for _ in range(len(children) - 1)]
 
     def execute(self, x: np.ndarray) -> np.ndarray:
-        # Recursive execution of the mixing tree
-        results = [c.process(x) if isinstance(c, Atom) else c.execute(x) for c in self.children]
+        # 1. Resolve Children (Recursion)
+        resolved_vectors = [
+            c.process(x) if isinstance(c, Atom) else c.execute(x) 
+            for c in self.children
+        ]
         
-        # Placeholder for learnable mixing (Add, Concat, Softmax)
-        return results[0] 
+        # 2. Sequential Reduction (Left-Associative Pipe)
+        v_acc = resolved_vectors[0]
+        
+        for i, v_next in enumerate(resolved_vectors[1:]):
+            phi = self.phis[i]
+            
+            # Generalized Interaction (Dot Product)
+            if v_acc.ndim == 2 and v_next.ndim == 2:
+                if v_acc.shape == v_next.shape: 
+                    # (N, D) @ (N, D).T -> (N, N) [Affinity Map]
+                    v_mix = np.dot(v_acc, v_next.T) 
+                elif v_acc.shape[0] == v_acc.shape[1]:
+                    # (N, N) @ (N, D) -> (N, D) [Apply Map]
+                    v_mix = np.dot(v_acc, v_next)
+                else:
+                    v_mix = v_acc * v_next
+            else:
+                v_mix = v_acc * v_next
+            
+            v_acc = phi.apply(v_mix)
+            
+        return v_acc
 
 class Core:
-    """[V9] Topology Container."""
-    def __init__(self, embedding_dim: int):
-        # The Seed Topology: Can evolve into Attention, Dense, etc.
-        self.topology = MixingNode([Atom(embedding_dim)], mix_policy="identity")
-    
+    """
+    [V9.2 Updated Logic]
+    Constructs the recursive Mixing Tree.
+    """
+    def __init__(self, embedding_dim: int, topology_def: List = None):
+        self.embedding_dim = embedding_dim
+        
+        if topology_def is None:
+            # Default Initialization: [[Q, K], V]
+            # Q: Active (Random Init)
+            # K, V: Passive (Identity Init)
+            
+            q_atom = Atom(embedding_dim, init_mode="random")
+            k_atom = Atom(embedding_dim, init_mode="identity")
+            v_atom = Atom(embedding_dim, init_mode="identity")
+            
+            # Step 1: The Attention Map Node [Q, K]
+            # Result is (N, N) affinity matrix
+            attn_node = MixingNode([q_atom, k_atom])
+            
+            # Step 2: The Application Node [AttnMap, V]
+            # Result is (N, D) output
+            self.root = MixingNode([attn_node, v_atom])
+        else:
+            # TODO: Parser for arbitrary lists
+            self.root = None 
+
     def forward(self, x: np.ndarray) -> np.ndarray:
-        return self.topology.execute(x)
+        return self.root.execute(x)
 
 
 # ============================================================
