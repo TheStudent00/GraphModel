@@ -153,19 +153,6 @@ class Feature:
 # SECTION 2 — The Atom Layer (Generalized Primitive)
 # ============================================================
 
-class ChannelMixer:
-    """[Restored V8/V9] The Spectral Prism. Mixes co-located fields."""
-    def __init__(self, input_channels: int, output_dim: int, init_mode: str = "identity"):
-        if init_mode == "identity":
-            self.mixing_matrix = np.eye(input_channels, output_dim)
-        else:
-            # Non-identity (Random/Orthogonal) for Query projections
-            # Small variance to start near-identity but with gradients
-            self.mixing_matrix = np.random.randn(input_channels, output_dim) * 0.02
-
-    def forward(self, x: np.ndarray) -> np.ndarray:
-        return np.dot(x, self.mixing_matrix)
-
 class Aperture:
     """[Restored V7/V9] Differentiable Window (Global -> Local)."""
     def __init__(self):
@@ -178,8 +165,6 @@ class Atom:
         
         # [V9.2 Update] Initialization Control
         # Q gets 'random', K/V get 'identity'
-        self.channel_mixer = ChannelMixer(16, embedding_dim, init_mode=init_mode)
-        
         self.aperture = Aperture()
         self.feature = Feature(embedding_dim)
         
@@ -192,15 +177,12 @@ class Atom:
         """Transition from Virtual to Real."""
         self.is_virtual = False
         self.latency_cost = 1.0 
-
+    
     def process(self, input_stream: np.ndarray, stream_offset: int = 0) -> np.ndarray:
         if self.is_virtual: return input_stream 
         
         # 1. Apply Cylindrical Rotary Embedding
         x = self.rope.apply(input_stream, start_index=stream_offset)
-        
-        # 2. Spectral Mixing (Prism)
-        x = self.channel_mixer.forward(x)
         
         # (Future: Apply Aperture and Feature extraction here)
         return x
