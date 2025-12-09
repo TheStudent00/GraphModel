@@ -1,13 +1,9 @@
-{
-type: uploaded file
-fileName: Description_version_9_1.md
-fullContent:
 # Graph Model Intellectual Property (IP) Description
-**Version 9.1 — Grand Unification (Integrated Physics & Recursion)**
+**Version 9.2 — Recursive Grammar & Cylindrical Time**
 
 This document captures the conceptual, architectural, and theoretical foundations of the Graph Model Oracle, defining the novel components, structural primitives, and meta-learning dynamics protected under the OTU Green License.
 
-Version 9.1 unifies the **Recursive Fractal Topology** of Version 9 with the **Relativistic Economics (LossComplexity)**, **Universal Physics**, and **Logistics** of Versions 6–8.
+Version 9.2 introduces the **Recursive Expression Engine** (a learnable grammatical compute model) and **Cylindrical Time** (hierarchical rotary embeddings), integrating them with the **Fractal Topology** and **Relativistic Economics** of Versions 6–9.
 
 ---
 
@@ -17,12 +13,12 @@ This description asserts IP protection over:
 
 - **The Recursive Fractal Architecture:** The nesting of Modules within Modules (Internal Sparsity).
 - **LossComplexity (The Relativistic Barrier):** A regulatory energy model where complexity cost asymptotes to infinity near the limit.
+- **Recursive Expression Engine:** A grammatical compute model replacing fixed topologies with learnable syntax trees (The Pipe).
+- **Cylindrical Time:** A hierarchical rotary embedding scheme (Day/Hour) enabling infinite context scaling with local precision.
+- **Continuous Normalization:** A differentiable manifold (Phi) that learns to interpolate between Linear, Softmax, and Gating behaviors.
 - **Impedance Regulation:** Connection costs based on Fractal Tree Distance.
 - **Universal Linearization:** Z-Order (Metric) and Spectral (Relational) input linearization.
 - **Bicameral Autopoiesis:** Active (Read-Only) vs. Reflective (Write-Access) Minds.
-- **Generalized Atomic Mixer:** A recursive topology of mixing nodes replacing rigid QKV.
-- **Virtual Identity & Phantom Latency:** Zero-cost potentiality with smooth "ramp-in" dynamics.
-- **Internal Rhythm:** Isochronal processing enforced by Sender-Time/Receiver-Space logistics.
 - **Feature Factorization:** Decoupling features into Spline (Physics), Permutation (Geometry), and Noise (Entropy).
 
 ---
@@ -30,6 +26,8 @@ This description asserts IP protection over:
 # 2. High-Level Summary
 
 The Graph Model is a **Fractal Organism**. It is composed of **Minds** (Hemispheres), which contain **Modules**, which recursively contain **Sub-Modules**.
+
+Computationally, the system abandons fixed layers in favor of a **Recursive Expression Engine**. Instead of a static architecture, Modules parse learnable syntax trees, executing a **Sequential Reduction** (Pipe) on inputs. To handle unbounded streams, it utilizes **Cylindrical Time**, mapping linear sequence data into a hierarchical spiral (Day/Hour).
 
 The system is regulated by a **Dual-Economy**:
 1.  **Internal Economy (LossComplexity):** A relativistic budget constraint that governs the expansion of the fractal (Parent distributes tokens to Children).
@@ -72,18 +70,24 @@ The system optimizes for **Isochrony** (predictable timing).
 
 ---
 
-# 5. The Computational Substrate
+# 5. The Computational Substrate (Recursive Expression Engine)
 
-## 5.1 The Core (Topology Container)
-The Core manages a **Mixing Topology** rather than fixed layers.
-* **Mixing Nodes:** A Core defines a tree of operations (e.g., `[[A, B], C]`).
-* **Learnable Policy:** Nodes learn to Add, Multiply, Concat, or Softmax their children.
+## 5.1 The Core (Recursive Syntax Tree)
+The Core is no longer a fixed topology but a **Recursive Expression Engine**. It parses a nested syntax tree of operations, allowing the architecture to evolve from standard Attention to arbitrary computational graphs.
+* **The Mixing Node (N-ary Pipe):** The fundamental operator is a **Sequential Left-Associative Reduction**. It accepts an arbitrary list of children `[A, B, C...]` and reduces them step-by-step: `((A · B) · C)...`
+    * **Generalized Interaction:** The system dynamically determines the interaction type based on dimensionality (e.g., creating an affinity map vs. applying a map vs. element-wise mixing).
+* **Continuous Normalization (`Phi`):** Discrete layers (Softmax, LayerNorm) are replaced by a **Learnable Continuous Manifold**.
+    * **The Function:** `Phi(x)` applies a learnable spline-based transformation, allowing the node to evolve smoothly between Identity (Linear), Softmax (Competitive), and Sigmoid (Gating) behaviors during training.
 
 ## 5.2 The Atom (Generalized Primitive)
-The Atom is the leaf of the Core's topology.
-* **Spectral Prism (Channel Mixer):** A learnable policy at the Atom's entry to fuse co-located fields (Channels) before spatial processing.
-* **Differentiable Aperture:** A continuous window function ($\sigma$) evolving from Global to Local reception.
-* **Factorized Feature:** The output is a composite of **Spline** (Magnitude), **Dual-Axis Permutation** (Geometry), and **Noise** (Entropy).
+The Atom is the leaf of the syntax tree, acting as a learnable projection unit that feeds the Expression Engine.
+* **Cylindrical Time (The Spiral):** To handle infinite context without losing local precision, the Atom applies **Hierarchical Rotary Embeddings**.
+    * **Hour Axis (High-Freq):** Standard RoPE for local relative syntax.
+    * **Day Axis (Low-Freq):** Global spiral rotation for long-term sequence tracking.
+* **Initialization Physics:**
+    * **Active Atoms (Q):** Initialized with random orthogonal weights to create divergent "Query" projections.
+    * **Passive Atoms (K/V):** Initialized as Identity to facilitate stable signal pass-through at the start of training.
+* **Factorized Feature:** The output remains a composite of **Spline** (Magnitude), **Dual-Axis Permutation** (Geometry), and **Noise** (Entropy).
 
 ---
 
@@ -103,13 +107,14 @@ The system models scale as a flow between Geometry and Entropy (Renormalization)
 
 Protected elements include:
 - The **Recursive Fractal Architecture** (Modules within Modules).
+- **Recursive Expression Engine** (Learnable Syntax Trees replacing fixed layers).
+- **Cylindrical Time** (Hierarchical Day/Hour Rotary Embeddings).
+- **Continuous Normalization** (Learnable Phi Manifold).
 - **LossComplexity** (The Relativistic Barrier).
 - **Impedance Regulation** via Fractal Tree Distance.
 - **Internal Rhythm** with **Phantom Latency** smoothing.
-- **Universal Linearization** (Z-Order/Spectral) & **Channel Mixing** (Prism).
-- **Generalized Atomic Mixer** (Topology vs. Rigid QKV).
+- **Universal Linearization** (Z-Order/Spectral).
 - **Feature Factorization** (Spline/Permutation/Noise).
 - **Bicameral Autopoiesis** with **Version Control**.
 
-This document unifies the recursive structure with the physical and economic laws necessary for its stability.
-}
+This document unifies the recursive grammar with the physical and economic laws necessary for its stability and infinite scaling.
