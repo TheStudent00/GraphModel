@@ -162,9 +162,16 @@ class Atom:
     """[V9] The Computational Leaf."""
     def __init__(self, embedding_dim: int, is_virtual: bool = True, init_mode: str = "identity"):
         self.is_virtual = is_virtual
+        self.embedding_dim = embedding_dim
         
-        # [V9.2 Update] Initialization Control
-        # Q gets 'random', K/V get 'identity'
+        # [V9.2 FIX] Restore the learnable weights directly in Atom
+        if init_mode == "identity":
+            # Start as Identity (Pass-through)
+            self.weights = np.eye(embedding_dim)
+        else:
+            # Start as Random (Active Projection for Q)
+            self.weights = np.random.randn(embedding_dim, embedding_dim) * 0.02
+
         self.aperture = Aperture()
         self.feature = Feature(embedding_dim)
         
@@ -184,8 +191,12 @@ class Atom:
         # 1. Apply Cylindrical Rotary Embedding
         x = self.rope.apply(input_stream, start_index=stream_offset)
         
-        # (Future: Apply Aperture and Feature extraction here)
+        # 2. Apply Projection (The "Channel Mixing" logic, now native to Atom)
+        # This allows Q to be different from K/V
+        x = np.dot(x, self.weights)
+        
         return x
+
 
 # ============================================================
 # SECTION 3 — The Core Layer (Recursive Expression Tree)
