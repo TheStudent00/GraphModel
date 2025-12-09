@@ -72,6 +72,69 @@ class UniversalWorm:
         # Ensures N-dim grid -> 1D stream locality preservation
         return np.arange(len(coords)) 
 
+class CylindricalRoPE:
+    """
+    [V9.2 New Logic]
+    Hierarchical Rotary Positional Embeddings.
+    Maps linear sequence time to Cylindrical Coordinates (Day, Hour).
+    
+    - Axis 1 (Hour): High-frequency local rotation (Standard RoPE).
+    - Axis 2 (Day): Low-frequency global rotation (Spiral).
+    
+    This composition allows for infinite sequence length (Day count) while
+    preserving high-precision relative distances within the local context (Hour).
+    """
+    def __init__(self, dim: int, day_length: int = 1024):
+        self.dim = dim
+        self.day_length = day_length
+        
+        # Standard frequencies for the 'Hour' (Local/Ring)
+        # Base 10000 is standard for capturing local syntax
+        inv_freq_h = 1.0 / (10000 ** (np.arange(0, dim, 2) / dim))
+        self.freqs_hour = inv_freq_h
+        
+        # Slower frequencies for the 'Day' (Global/Spiral)
+        # Base 100000 ensures the spiral evolves slowly compared to the ring
+        inv_freq_d = 1.0 / (100000 ** (np.arange(0, dim, 2) / dim))
+        self.freqs_day = inv_freq_d
+
+    def apply(self, x: np.ndarray, start_index: int = 0) -> np.ndarray:
+        """
+        Applies cylindrical rotation to input batch x.
+        x shape: (seq_len, dim)
+        """
+        seq_len, dim = x.shape
+        indices = np.arange(start_index, start_index + seq_len)
+        
+        # 1. Decompose Linear Index into Cylindrical (Day, Hour)
+        days = indices // self.day_length
+        hours = indices % self.day_length
+        
+        # 2. Compute Angles (Broadcasting)
+        # Outer product to get angles for every feature pair
+        angles_h = np.outer(hours, self.freqs_hour) # (seq, dim/2)
+        angles_d = np.outer(days, self.freqs_day)   # (seq, dim/2)
+        
+        # 3. Composite Rotation (The Spiral)
+        # Summing angles is mathematically equivalent to rotating by Hour then by Day
+        total_angle = angles_h + angles_d
+        
+        # 4. Apply Rotation to pairs [x0, x1]
+        # Repeat angles for both parts of the pair
+        theta = np.repeat(total_angle, 2, axis=1)
+        
+        # Prepare cos/sin
+        cos_t = np.cos(theta)
+        sin_t = np.sin(theta)
+        
+        # Apply standard rotary formula
+        # [-x1, x0] * sin + [x0, x1] * cos
+        x_rotated = np.empty_like(x)
+        x_rotated[:, 0::2] = x[:, 0::2] * cos_t[:, 0::2] - x[:, 1::2] * sin_t[:, 0::2]
+        x_rotated[:, 1::2] = x[:, 0::2] * sin_t[:, 0::2] + x[:, 1::2] * cos_t[:, 0::2]
+        
+        return x_rotated
+
 class Feature:
     """
     [V9 Factorization]
@@ -113,8 +176,10 @@ class Atom:
         self.aperture = Aperture()
         self.feature = Feature(embedding_dim)
         
+        # [V9.2 Update] Hierarchical Position
+        self.rope = CylindricalRoPE(embedding_dim, day_length=1024)
+        
         # [V9.1 New Logic] Phantom Latency
-        # Prevents infinite temporal gradients when transitioning Virtual -> Real.
         self.latency_cost = 0.1 if is_virtual else 1.0
 
     def realize(self):
@@ -122,10 +187,15 @@ class Atom:
         self.is_virtual = False
         self.latency_cost = 1.0 
 
-    def process(self, input_stream: np.ndarray) -> np.ndarray:
+    def process(self, input_stream: np.ndarray, stream_offset: int = 0) -> np.ndarray:
         if self.is_virtual: return input_stream 
+        
+        # [V9.2 Update] Apply Cylindrical Rotary Embedding before processing
+        x = self.rope.apply(input_stream, start_index=stream_offset)
+        
         # Logic: Mix -> Window -> Extract Feature
-        return input_stream
+        # (This is where the Feature extraction logic would use the rotated x)
+        return x
 
 
 # ============================================================
