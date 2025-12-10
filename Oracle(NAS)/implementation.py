@@ -1,11 +1,11 @@
-{
-type: uploaded file
-fileName: implementation_version_9_1.py
-fullContent:
-# Graph Model Implementation Notes
-# Version 9.1 — Grand Unification (Integrated)
-# Restores V6/V7/V8 Physics (LossComplexity, Impedance, Rhythm) 
-# into the V9 Recursive Fractal Container.
+"""
+Graph Model Implementation Notes
+    Version 9.2 introduces the **Recursive Expression Engine** 
+    (a learnable grammatical compute model) 
+    and **Cylindrical Time** (hierarchical rotary embeddings),
+    integrating them with the **Fractal Topology** 
+    and **Relativistic Economics** of Versions 6–9.
+"""
 
 from __future__ import annotations
 from typing import List, Dict, Optional, Any, Union, Tuple, Deque
