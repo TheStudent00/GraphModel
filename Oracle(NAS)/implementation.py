@@ -469,5 +469,3 @@ class GraphModel:
         # 2. Propagate
         # Real logic would traverse the active_mind.modules graph
         pass
-
-}
