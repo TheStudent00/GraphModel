@@ -1,3 +1,7 @@
+"""
+(Graph Model) Vision Intellectual Property (IP) Implementation
+"""
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
