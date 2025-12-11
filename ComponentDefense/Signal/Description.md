@@ -1,4 +1,4 @@
-# Graph Model Intellectual Property (IP) Description
+# (Graph Model) Vision Intellectual Property (IP) Description
 **Version 9.6 — Nucleus Physics & Channel Stacking**
 
 This document captures the conceptual, architectural, and theoretical foundations of the Graph Model Oracle, defining the novel components, structural primitives, and meta-learning dynamics protected under the OTU Green License.
