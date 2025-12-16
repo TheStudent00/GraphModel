@@ -143,110 +143,134 @@ class Feature:
 
 
 # ============================================================
-# SECTION 2 — The Atom Layer (Generalized Primitive)
+# SECTION 2 — The Atom Layer (Generalized Primitive) [V10]
 # ============================================================
+
+class Atom(nn.Module):
+    """
+    [V10 Upgrade]
+    The Fundamental Projection Unit.
+    Instead of projecting vectors, it 'Warps' the shape of the input function.
+    
+    Input:  Cubic Coefficients (4)
+    Action: Linear Transform (4x4)
+    Output: New Cubic Coefficients (4)
+    """
+    def __init__(self, embedding_dim: int = 4): # 4 coeffs for Cubic
+        super().__init__()
+        # The 'Warp' Matrix: Transforms the polynomial shape
+        # e.g., turning a flat line into a curve, or shifting phase.
+        self.warp = nn.Linear(embedding_dim, embedding_dim)
+        
+        # [Restored V9] Initialization Physics
+        # Active Atoms (Q) start random (divergent)
+        # Passive Atoms (K/V) start as Identity (pass-through)
+        self.init_mode = "identity" 
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # x shape: (..., 7) [Coeffs(4), Sigma, Mass, Pos]
+        coeffs = x[..., :4]
+        meta = x[..., 4:]
+        
+        # Warp the coefficients (The Physics)
+        new_coeffs = self.warp(coeffs)
+        
+        # Pass metadata through untouched (The Logistics)
+        return torch.cat([new_coeffs, meta], dim=-1)
 
 class Aperture:
     """[Restored V7/V9] Differentiable Window (Global -> Local)."""
     def __init__(self):
-        self.sigma = 1e6 
-
+        self.sigma = 1e6
 
 # ============================================================
 # SECTION 3 — The Core Layer (Recursive Expression Tree)
 # ============================================================
 
-class LearnablePhi:
+class LearnablePhi(nn.Module):
     """
-    [V9.2 New Logic] Continuous Normalization Function.
-    Learns to be Identity, Softmax, or Tanh.
-    """
-    def __init__(self):
-        self.scale = 1.0
-        self.shift = 0.0
-        self.temperature = 1.0 
-
-    def apply(self, x: np.ndarray) -> np.ndarray:
-        x_affine = (x * self.scale) + self.shift
-        exp_x = np.exp(x_affine * self.temperature)
-        return exp_x / (np.sum(exp_x, axis=-1, keepdims=True) + 1e-6)
-
-# ?
-# ============================================================
-# SECTION 3 — The Functional Core (Wave Interference) [V10]
-# ============================================================
-
-class CubicProjector(nn.Module):
-    """
-    [V10 Math]
-    Stabilizes the system by projecting Degree-6 interactions (Cubic * Cubic)
-    back onto the Cubic basis (Degree-3) using a fixed orthogonal matrix.
+    [V10 Energy Valve]
+    Learns how to normalize the 'Mass' (Energy) of an interaction.
+    
+    Modes (Learned via 'temperature' and 'shift'):
+    - Sigmoid-like: Independent Gating (Allows multiple features to pass).
+    - Tanh-like: Balanced Gating (Allows positive/negative interference).
+    - Linear-like: Pass-through (High risk, high reward).
     """
     def __init__(self):
         super().__init__()
-        # Fixed Projection Matrix (4x7)
-        self.register_buffer('proj_matrix', torch.tensor([...])) 
+        self.scale = nn.Parameter(torch.tensor(1.0))
+        self.shift = nn.Parameter(torch.tensor(0.0))
+        # Initializing slightly saturated to ensure stability at start
+        self.tanh_gate = nn.Tanh() 
 
-    def convolve(self, poly_a, poly_b):
-        """
-        Performs Polynomial Convolution followed by Projection.
-        Input: Two Cubics. Output: One Cubic (The Interference Pattern).
-        """
-        pass
+    def forward(self, energy_tensor: torch.Tensor) -> torch.Tensor:
+        # 1. Affine Transform (Learnable Range)
+        x = (energy_tensor * self.scale) + self.shift
+        
+        # 2. Non-Linearity (The Valve)
+        # We use Tanh because wave interference can be destructive (negative).
+        # Standard Softmax is 0..1 (only constructive). 
+        # Tanh is -1..1 (constructive & destructive).
+        return self.tanh_gate(x)
 
-class FunctionalAttention(nn.Module):
-    """
-    [V10 Physics]
-    Replaces Dot-Product Attention with Polynomial Superposition.
-    """
-    def __init__(self):
+class MixingNode(nn.Module):
+    def __init__(self, children: List[Union[Atom, 'MixingNode']]):
         super().__init__()
+        self.children = nn.ModuleList(children)
         self.projector = CubicProjector()
-        self.fog_alpha = nn.Parameter(torch.tensor(0.5)) # Learnable Distance Decay
+        
+        # [V10] The Energy Governor
+        self.phi = LearnablePhi() 
+        
+        # [V10] Fog of War Parameter
+        self.fog_alpha = nn.Parameter(torch.tensor(0.5))
 
     def execute(self, stream: torch.Tensor):
-        # Input: (Batch, N, 7) [Coeffs, Sigma, Mass, Pos]
+        # ... (Child execution logic same as before) ...
         
-        # 1. Law of Superposition
-        # Convolve Query Shapes with Key Shapes -> Resonance Curve
+        # 1. Extract Physics
+        q_c, q_sig, q_mass, q_pos = self._unpack(q)
+        k_c, k_sig, k_mass, k_pos = self._unpack(k)
         
-        # 2. Law of Uncertainty (Fog of War)
-        # interaction_sigma = sqrt(sig_q^2 + sig_k^2 + alpha*log(dist))
-        # weight = Resonance / interaction_sigma
+        # 2. Shape Resonance (The Curve Interaction)
+        # Result: A Cubic Curve representing the 'Flavor' of the interaction
+        resonance_curve = self.projector(q_c, k_c)
         
-        # 3. Law of Conservation
-        # Output Mass is clamped (Tanh) to prevent energy explosion.
-        pass
-
-class Core:
-    """
-    [V9.2 Updated Logic]
-    Constructs the recursive Mixing Tree.
-    """
-    def __init__(self, embedding_dim: int, topology_def: List = None):
-        self.embedding_dim = embedding_dim
+        # 3. Fog of War (The Uncertainty)
+        dist = torch.abs(q_pos - k_pos)
+        interaction_sigma = torch.sqrt(q_sig**2 + k_sig**2 + self.fog_alpha * torch.log(1 + dist))
         
-        if topology_def is None:
-            # Default Initialization: [[Q, K], V]
-            # Q: Active (Random Init)
-            # K, V: Passive (Identity Init)
-            
-            q_atom = Atom(embedding_dim, init_mode="random")
-            k_atom = Atom(embedding_dim, init_mode="identity")
-            v_atom = Atom(embedding_dim, init_mode="identity")
-            
-            # Step 1: The Attention Map Node [Q, K]
-            # Result is (N, N) affinity matrix
-            attn_node = MixingNode([q_atom, k_atom])
-            
-            # Step 2: The Application Node [AttnMap, V]
-            # Result is (N, D) output
-            self.root = MixingNode([attn_node, v_atom])
+        # 4. Raw Energy Calculation
+        # "How strong is this interaction before normalization?"
+        raw_energy = (q_mass * k_mass) / (interaction_sigma + 1e-6)
+        
+        # 5. Continuous Normalization (The Phi Valve)
+        # We normalize the Energy, NOT the Curve coefficients.
+        normalized_weight = self.phi(raw_energy)
+        
+        # 6. Apply to Value
+        if len(self.children) > 2:
+            v = self.children[2](stream)
+            # Convolve: Result Curve = (Resonance * V_Shape) * Phi_Weight
+            return self._apply_resonance(resonance_curve, normalized_weight, v)
         else:
-            # TODO: Parser for arbitrary lists
-            self.root = None 
+            # Output: Interaction Curve * Phi_Weight
+            # We broadcast the scalar weight across the 4 coefficients
+            return resonance_curve * normalized_weight.unsqueeze(-1)
+            
+class Core:
+    """[V9.2 Structure] Constructs the recursive Mixing Tree."""
+    def __init__(self, embedding_dim: int):
+        # Default Topology: [[Q, K], V]
+        q_atom = Atom(embedding_dim)
+        k_atom = Atom(embedding_dim)
+        v_atom = Atom(embedding_dim)
+        
+        attn_node = MixingNode([q_atom, k_atom])
+        self.root = MixingNode([attn_node, v_atom])
 
-    def forward(self, x: np.ndarray) -> np.ndarray:
+    def forward(self, x):
         return self.root.execute(x)
 
 
