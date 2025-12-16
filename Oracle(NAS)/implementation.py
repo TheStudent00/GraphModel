@@ -65,13 +65,6 @@ class LossComplexity:
         return True
 
 
-class UniversalWorm:
-    """[Restored from V8] Helper for Z-Order Linearization."""
-    def z_order_argsort(self, coords: np.ndarray) -> np.ndarray:
-        # Placeholder for Morton Code calculation
-        # Ensures N-dim grid -> 1D stream locality preservation
-        return np.arange(len(coords)) 
-
 class CylindricalRoPE:
     """
     [V9.2 New Logic]
