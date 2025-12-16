@@ -1,9 +1,9 @@
 # Graph Model Intellectual Property (IP) Description
-**Version 9.2 — Recursive Grammar & Cylindrical Time**
+**Version 10 — Parametric Functional Physics**
 
 This document captures the conceptual, architectural, and theoretical foundations of the Graph Model Oracle, defining the novel components, structural primitives, and meta-learning dynamics protected under the OTU Green License.
 
-Version 9.2 introduces the **Recursive Expression Engine** (a learnable grammatical compute model) and **Cylindrical Time** (hierarchical rotary embeddings), integrating them with the **Fractal Topology** and **Relativistic Economics** of Versions 6–9.
+Version 10 introduces **Parametric Functional Physics** (Polynomial Convolution), replacing discrete vector arithmetic with continuous function interference. This integrates with the **Recursive Expression Engine** (V9 Grammar) and **Fractal Topology** (V6-V8) to create a **Differentiable Analog Computer** capable of processing variable-rate signals with infinite resolution.
 
 ---
 
@@ -14,12 +14,13 @@ This description asserts IP protection over:
 - **The Recursive Fractal Architecture:** The nesting of Modules within Modules (Internal Sparsity).
 - **LossComplexity (The Relativistic Barrier):** A regulatory energy model where complexity cost asymptotes to infinity near the limit.
 - **Recursive Expression Engine:** A grammatical compute model replacing fixed topologies with learnable syntax trees (The Pipe).
-- **Cylindrical Time:** A hierarchical rotary embedding scheme (Day/Hour) enabling infinite context scaling with local precision.
-- **Continuous Normalization:** A differentiable manifold (Phi) that learns to interpolate between Linear, Softmax, and Gating behaviors.
+- **Parametric Functional Physics:** A computational substrate where "Attention" is redefined as the **Polynomial Convolution** (Superposition) of continuous signal shapes.
+- **Fog of War (Entropy Gating):** A physical model of position where distance injects **Variance** ($\sigma$) into interactions, naturally dampening long-range signals without fixed context windows.
+- **Parametric Poly-Tokenization:** A recursive signal compression algorithm that treats Text (Micro) and Images (Macro) as variable-length cubic segments based on structural residuals.
+- **The Functional Token:** The fundamental unit of information, defined as a **Cubic Bundle** `[Shape, Sigma, Mass, Position]`, replacing discrete feature vectors.
+- **Learnable Phi (Energy Valve):** A continuous normalization gate that regulates the conservation of **Mass** (Energy) during wave interference.
 - **Impedance Regulation:** Connection costs based on Fractal Tree Distance.
-- **Universal Linearization:** Z-Order (Metric) and Spectral (Relational) input linearization.
 - **Bicameral Autopoiesis:** Active (Read-Only) vs. Reflective (Write-Access) Minds.
-- **Feature Factorization:** Decoupling features into Spline (Physics), Permutation (Geometry), and Noise (Entropy).
 
 ---
 
