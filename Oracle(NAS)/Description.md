@@ -91,30 +91,38 @@ The Atom is the leaf of the syntax tree, acting as a learnable projection unit t
 
 ---
 
-# 6. Universal Linearization & Scale
+# 6. Universal Parametric Input (V10)
 
-## 6.1 Dual-Path Interface
-* **Metric Path:** N-dimensional grids are linearized via **Z-Order Curves** (Morton Codes) to preserve locality in 1D streams.
-* **Relational Path:** Graphs are linearized via **Spectral Ordering** (Fiedler Vectors).
+## 6.1 Recursive Poly-Tokenization
+The system abandons discrete pixel/token embedding in favor of **Parametric Signal Compression**.
+* **The Sensor:** A recursive "Physics Fitter" scans the Z-Order linearized stream.
+* **The Logic:** It fits cubic polynomials ($at^3 + bt^2 + ct + d$) to the signal.
+    * **Macro-Tokens:** Smooth gradients (Sky, Skin) are captured by single long-range polynomials.
+    * **Micro-Tokens:** High-frequency data (Text, Texture) forces the recursion to split down to the atomic limit (Length 4), creating a lossless interpolation.
+* **Result:** A variable-rate stream where "Text" is treated as Micro-Geometry and "Images" as Macro-Geometry.
 
-## 6.2 Fractal Scale Equivariance
-The system models scale as a flow between Geometry and Entropy (Renormalization).
-* **Fractal Head:** Uses the Entropy parameter to predict and generate high-frequency jitter during upsampling, ensuring scale equivariance.
+## 6.2 The Functional Token
+The fundamental unit of information is no longer a vector, but a **Cubic Bundle**:
+* **Coefficients:** The Shape of the signal.
+* **Sigma ($\sigma$):** The Texture/Uncertainty (Avg deviation from the fit).
+* **Mass:** The Energy/Amplitude of the signal.
+* **Position:** Absolute Z-Order Index (Metadata).
+
+## 6.3 Fog of War (Positional Physics)
+Distance is modeled as **Entropy Injection**.
+* Instead of rotating vectors (RoPE), the system injects variance into the interaction based on distance: $\sigma_{total}^2 = \sigma_A^2 + \sigma_B^2 + \alpha \log(1 + \Delta x)$.
+* This naturally dampens long-range interactions unless the signal "Mass" is high enough to pierce the uncertainty.
 
 ---
 
-# 7. IP Coverage Summary
+# 7. IP Coverage Summary (V10 Update)
 
 Protected elements include:
-- The **Recursive Fractal Architecture** (Modules within Modules).
-- **Recursive Expression Engine** (Learnable Syntax Trees replacing fixed layers).
-- **Cylindrical Time** (Hierarchical Day/Hour Rotary Embeddings).
-- **Continuous Normalization** (Learnable Phi Manifold).
+- **Parametric Poly-Tokenization:** The recursive compression of signals into cubic segments based on structural residuals (Structure vs. Texture).
+- **Functional Neural Operators:** The use of Polynomial Convolution + Projection as the fundamental "Attention" mechanism.
+- **Fog of War Physics:** Replacing rotational embeddings with Distance-Based Sigma Injection (Entropy Dampening).
+- **The Functional Token:** The specific data structure `[Shape, Sigma, Mass, Position]`.
+- **The Recursive Fractal Architecture** (Modules within Modules).
 - **LossComplexity** (The Relativistic Barrier).
-- **Impedance Regulation** via Fractal Tree Distance.
-- **Internal Rhythm** with **Phantom Latency** smoothing.
-- **Universal Linearization** (Z-Order/Spectral).
-- **Feature Factorization** (Spline/Permutation/Noise).
-- **Bicameral Autopoiesis** with **Version Control**.
 
 This document unifies the recursive grammar with the physical and economic laws necessary for its stability and infinite scaling.
