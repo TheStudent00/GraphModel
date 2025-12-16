@@ -70,40 +70,40 @@ The system optimizes for **Isochrony** (predictable timing).
 
 ---
 
-# 5. The Computational Substrate (Recursive Expression Engine)
+# 5. The Computational Substrate (V10 Functional Core)
 
-## 5.1 The Core (Recursive Syntax Tree)
-The Core is no longer a fixed topology but a **Recursive Expression Engine**. It parses a nested syntax tree of operations, allowing the architecture to evolve from standard Attention to arbitrary computational graphs.
-* **The Mixing Node (N-ary Pipe):** The fundamental operator is a **Sequential Left-Associative Reduction**. It accepts an arbitrary list of children `[A, B, C...]` and reduces them step-by-step: `((A · B) · C)...`
-    * **Generalized Interaction:** The system dynamically determines the interaction type based on dimensionality (e.g., creating an affinity map vs. applying a map vs. element-wise mixing).
-* **Continuous Normalization (`Phi`):** Discrete layers (Softmax, LayerNorm) are replaced by a **Learnable Continuous Manifold**.
-    * **The Function:** `Phi(x)` applies a learnable spline-based transformation, allowing the node to evolve smoothly between Identity (Linear), Softmax (Competitive), and Sigmoid (Gating) behaviors during training.
+## 5.1 The Core (Recursive Interference Engine)
+The Core preserves the recursive "Pipe" topology of V9 but upgrades the interaction mechanism from Vector Dot-Products to **Functional Superposition**.
+* **The Mixing Node (Functional Convolution):** The fundamental operator is no longer a matrix multiplication, but a **Polynomial Convolution**. 
+    * **Mechanism:** It convolves the "Shape" of input signals (Cubic Curves) to generate a **Resonance Pattern**, which modulates the value stream.
+    * **Fog of War (Entropy Gating):** Instead of rotary embeddings, the node injects **Distance-Based Variance** ($\sigma^2 \propto \log(\Delta x)$) into the interaction. This physically dampens long-range signals unless their Mass (Amplitude) is high enough to pierce the uncertainty.
 
-## 5.2 The Atom (Generalized Primitive)
-The Atom is the leaf of the syntax tree, acting as a learnable projection unit that feeds the Expression Engine.
-* **Cylindrical Time (The Spiral):** To handle infinite context without losing local precision, the Atom applies **Hierarchical Rotary Embeddings**.
-    * **Hour Axis (High-Freq):** Standard RoPE for local relative syntax.
-    * **Day Axis (Low-Freq):** Global spiral rotation for long-term sequence tracking.
-* **Initialization Physics:**
-    * **Active Atoms (Q):** Initialized with random orthogonal weights to create divergent "Query" projections.
-    * **Passive Atoms (K/V):** Initialized as Identity to facilitate stable signal pass-through at the start of training.
-* **Factorized Feature:** The output remains a composite of **Spline** (Magnitude), **Dual-Axis Permutation** (Geometry), and **Noise** (Entropy).
+## 5.2 The Atom (Parametric Warp Unit)
+The Atom remains the fundamental leaf node, but its role shifts from Vector Projection to **Signal Warping**.
+* **Action:** It applies a learnable linear transform to the **Coefficients** of the input polynomial, effectively "bending" the curve (changing its shape/phase) before interaction.
+* **Initialization:**
+    * **Active Atoms (Q):** Initialized to create divergent shapes (High warping).
+    * **Passive Atoms (K/V):** Initialized as Identity (Pass-through) to preserve signal fidelity.
+
+## 5.3 Learnable Phi (The Energy Valve)
+The Continuous Normalization function (`Phi`) now acts as a **Conservation Governor**.
+* **Role:** It regulates the **Mass** (Energy) of the interaction.
+* **Logic:** It applies a learnable non-linear gate (Tanh/Sigmoid) to the raw interaction energy, preventing the "Exploding Amplitude" problem inherent in wave interference systems.
 
 ---
 
-# 6. Universal Parametric Input (V10)
+# 6. The Universal Substrate (Parametric Input)
 
 ## 6.1 Recursive Poly-Tokenization
-The system abandons discrete pixel/token embedding in favor of **Parametric Signal Compression**.
-* **The Sensor:** A recursive "Physics Fitter" scans the Z-Order linearized stream.
-* **The Logic:** It fits cubic polynomials ($at^3 + bt^2 + ct + d$) to the signal.
-    * **Macro-Tokens:** Smooth gradients (Sky, Skin) are captured by single long-range polynomials.
-    * **Micro-Tokens:** High-frequency data (Text, Texture) forces the recursion to split down to the atomic limit (Length 4), creating a lossless interpolation.
-* **Result:** A variable-rate stream where "Text" is treated as Micro-Geometry and "Images" as Macro-Geometry.
+The Interface abandons discrete pixel embedding for **Parametric Signal Compression**.
+* **The Sensor:** A recursive "Physics Fitter" scans the Z-Order stream.
+* **The Logic:** It fits cubic polynomials to the signal, splitting recursively based on **Structural Residuals** (distinguishing Texture from Geometry).
+    * **Macro-Tokens:** Smooth gradients are captured by single long-range polynomials.
+    * **Micro-Tokens:** High-frequency data (Text/Edges) forces the recursion to split down to the interpolation limit, creating a lossless representation.
 
 ## 6.2 The Functional Token
-The fundamental unit of information is no longer a vector, but a **Cubic Bundle**:
-* **Coefficients:** The Shape of the signal.
+The fundamental unit of information is a **Cubic Bundle** containing:
+* **Shape:** The Polynomial Coefficients ($at^3 + bt^2 + ct + d$).
 * **Sigma ($\sigma$):** The Texture/Uncertainty (Avg deviation from the fit).
 * **Mass:** The Energy/Amplitude of the signal.
 * **Position:** Absolute Z-Order Index (Metadata).
