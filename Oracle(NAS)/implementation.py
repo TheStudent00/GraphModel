@@ -158,45 +158,6 @@ class Aperture:
     def __init__(self):
         self.sigma = 1e6 
 
-class Atom:
-    """[V9] The Computational Leaf."""
-    def __init__(self, embedding_dim: int, is_virtual: bool = True, init_mode: str = "identity"):
-        self.is_virtual = is_virtual
-        self.embedding_dim = embedding_dim
-        
-        # [V9.2 FIX] Restore the learnable weights directly in Atom
-        if init_mode == "identity":
-            # Start as Identity (Pass-through)
-            self.weights = np.eye(embedding_dim)
-        else:
-            # Start as Random (Active Projection for Q)
-            self.weights = np.random.randn(embedding_dim, embedding_dim) * 0.02
-
-        self.aperture = Aperture()
-        self.feature = Feature(embedding_dim)
-        
-        # [V9.2 Update] Hierarchical Position
-        self.rope = CylindricalRoPE(embedding_dim, day_length=1024)
-        
-        self.latency_cost = 0.1 if is_virtual else 1.0
-
-    def realize(self):
-        """Transition from Virtual to Real."""
-        self.is_virtual = False
-        self.latency_cost = 1.0 
-    
-    def process(self, input_stream: np.ndarray, stream_offset: int = 0) -> np.ndarray:
-        if self.is_virtual: return input_stream 
-        
-        # 1. Apply Cylindrical Rotary Embedding
-        x = self.rope.apply(input_stream, start_index=stream_offset)
-        
-        # 2. Apply Projection (The "Channel Mixing" logic, now native to Atom)
-        # This allows Q to be different from K/V
-        x = np.dot(x, self.weights)
-        
-        return x
-
 
 # ============================================================
 # SECTION 3 — The Core Layer (Recursive Expression Tree)
@@ -217,45 +178,52 @@ class LearnablePhi:
         exp_x = np.exp(x_affine * self.temperature)
         return exp_x / (np.sum(exp_x, axis=-1, keepdims=True) + 1e-6)
 
-class MixingNode:
-    """
-    [V9.2 New Logic] The Recursive N-ary Operator.
-    Executes children then performs sequential reduction.
-    """
-    def __init__(self, children: List[Union['MixingNode', Atom]]):
-        self.children = children
-        # One Phi for each mixing step in the pipe
-        self.phis = [LearnablePhi() for _ in range(len(children) - 1)]
+# ?
+# ============================================================
+# SECTION 3 — The Functional Core (Wave Interference) [V10]
+# ============================================================
 
-    def execute(self, x: np.ndarray) -> np.ndarray:
-        # 1. Resolve Children (Recursion)
-        resolved_vectors = [
-            c.process(x) if isinstance(c, Atom) else c.execute(x) 
-            for c in self.children
-        ]
+class CubicProjector(nn.Module):
+    """
+    [V10 Math]
+    Stabilizes the system by projecting Degree-6 interactions (Cubic * Cubic)
+    back onto the Cubic basis (Degree-3) using a fixed orthogonal matrix.
+    """
+    def __init__(self):
+        super().__init__()
+        # Fixed Projection Matrix (4x7)
+        self.register_buffer('proj_matrix', torch.tensor([...])) 
+
+    def convolve(self, poly_a, poly_b):
+        """
+        Performs Polynomial Convolution followed by Projection.
+        Input: Two Cubics. Output: One Cubic (The Interference Pattern).
+        """
+        pass
+
+class FunctionalAttention(nn.Module):
+    """
+    [V10 Physics]
+    Replaces Dot-Product Attention with Polynomial Superposition.
+    """
+    def __init__(self):
+        super().__init__()
+        self.projector = CubicProjector()
+        self.fog_alpha = nn.Parameter(torch.tensor(0.5)) # Learnable Distance Decay
+
+    def execute(self, stream: torch.Tensor):
+        # Input: (Batch, N, 7) [Coeffs, Sigma, Mass, Pos]
         
-        # 2. Sequential Reduction (Left-Associative Pipe)
-        v_acc = resolved_vectors[0]
+        # 1. Law of Superposition
+        # Convolve Query Shapes with Key Shapes -> Resonance Curve
         
-        for i, v_next in enumerate(resolved_vectors[1:]):
-            phi = self.phis[i]
-            
-            # Generalized Interaction (Dot Product)
-            if v_acc.ndim == 2 and v_next.ndim == 2:
-                if v_acc.shape == v_next.shape: 
-                    # (N, D) @ (N, D).T -> (N, N) [Affinity Map]
-                    v_mix = np.dot(v_acc, v_next.T) 
-                elif v_acc.shape[0] == v_acc.shape[1]:
-                    # (N, N) @ (N, D) -> (N, D) [Apply Map]
-                    v_mix = np.dot(v_acc, v_next)
-                else:
-                    v_mix = v_acc * v_next
-            else:
-                v_mix = v_acc * v_next
-            
-            v_acc = phi.apply(v_mix)
-            
-        return v_acc
+        # 2. Law of Uncertainty (Fog of War)
+        # interaction_sigma = sqrt(sig_q^2 + sig_k^2 + alpha*log(dist))
+        # weight = Resonance / interaction_sigma
+        
+        # 3. Law of Conservation
+        # Output Mass is clamped (Tanh) to prevent energy explosion.
+        pass
 
 class Core:
     """
@@ -422,15 +390,33 @@ class Module:
 # ============================================================
 # SECTION 6 — The Mind Layer (Bicameral & Meta-Context)
 # ============================================================
+# [V10 Update: Replacing UniversalWorm with PolyTokenizer]
+class PolyTokenizer:
+    """
+    [V10 Physics Engine]
+    Recursively fits Cubic Polynomials to Z-Order streams.
+    Converts Raw Data -> Ragged Stream of Functional Tokens.
+    """
+    def __init__(self, mse_threshold: float = 0.01):
+        self.mse_threshold = mse_threshold
+        # Pre-calculated matrices for fast least-squares fitting would live here.
+
+    def tokenize(self, signal: torch.Tensor) -> torch.Tensor:
+        # 1. Recursive Fit (Mean -> Line -> Cubic)
+        # 2. Structure Check (Autocorrelation of residuals)
+        # 3. Output: Tensor of shape (N_tokens, 7) 
+        #    [c3, c2, c1, c0, sigma, mass, pos]
+        pass 
 
 class Interface:
-    """[V8] Universal Linearization Gateway."""
+    """[V10] Universal Parametric Gateway."""
     def __init__(self):
-        self.worm = UniversalWorm()
+        self.tokenizer = PolyTokenizer()
         
-    def linearize(self, data: Any, mode: str = "metric") -> Dict:
-        # [Restored V8] Z-Order or Spectral Linearization
-        return {"stream": data, "topology_token": None}
+    def linearize(self, data: Any) -> Dict:
+        # Stream is now a sequence of FUNCTIONS, not vectors.
+        # Returns the Packed Stream for the Functional Core.
+        return {"functional_stream": self.tokenizer.tokenize(data)}
 
 class Mind:
     """Base Hemisphere."""
