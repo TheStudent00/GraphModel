@@ -26,58 +26,25 @@ class LossComplexity:
     def __init__(self, limit_space: float = 1e6, limit_time: float = 100.0):
         self.limit_space = limit_space
         self.limit_time = limit_time
-        
-        # Curvature Gamma (Learnable by MindsEye)
-        # Higher Gamma = Harder Wall. Lower Gamma = Softer Wall.
         self.gamma = 1.0 
-        
         self.current_space = 0.0
         self.current_time = 0.0
 
     def get_barrier_penalty(self) -> float:
-        """
-        Calculates the relativistic cost as complexity approaches the limit.
-        Cost -> Infinity as Current -> Limit.
-        Formula: 1 / sqrt(1 - (C/Limit)^2)
-        """
-        # Clip to 0.99 to prevent divide-by-zero
         ratio_s = min(self.current_space / self.limit_space, 0.99)
         ratio_t = min(self.current_time / self.limit_time, 0.99)
-        
         penalty_s = 1.0 / np.sqrt(1.0 - ratio_s**2)
         penalty_t = 1.0 / np.sqrt(1.0 - ratio_t**2)
-        
         return (penalty_s + penalty_t) * self.gamma
 
     def distribute_tokens(self, amount_space: float, amount_time: float) -> bool:
-        """
-        Attempts to allocate complexity tokens for child processes/atoms.
-        Returns False if barrier makes cost prohibitive (Hard Stop).
-        In a differentiable setting, this would return a high gradient cost.
-        """
         new_s = self.current_space + amount_space
         new_t = self.current_time + amount_time
-        
         if new_s >= self.limit_space or new_t >= self.limit_time:
             return False
-        
         self.current_space = new_s
         self.current_time = new_t
         return True
-
-
-class Feature:
-    """
-    [V9 Factorization]
-    Composite Object: Spline (Physics) + Permutation (Geometry) + Noise (Entropy).
-    """
-    def __init__(self, embedding_dim: int):
-        self.spline_knots = np.zeros(embedding_dim) 
-        # [Restored V7] Dual-Axis: Row (Topology) & Column (Semantic)
-        self.perm_row_coeffs = np.zeros(embedding_dim) 
-        self.perm_col_coeffs = np.zeros(embedding_dim)
-        # [Restored V8] Renormalization Entropy
-        self.noise_variance = np.ones(embedding_dim) * 1e-5
 
 
 # ============================================================
@@ -88,33 +55,62 @@ class Atom(nn.Module):
     """
     [V10 Upgrade]
     The Fundamental Projection Unit.
-    Instead of projecting vectors, it 'Warps' the shape of the input function.
+    Contains the 'Template Curve' (Embedding Space) of size N.
     
-    Input:  Cubic Coefficients (4)
-    Action: Linear Transform (4x4)
-    Output: New Cubic Coefficients (4)
+    Action: Performs 'Analytic Moment Projection' (The Accordion).
+    It resamples the Input Stream (M segments) onto the Template Basis (N segments)
+    while modulating the Template with the Input's content.
     """
-    def __init__(self, embedding_dim: int = 4): # 4 coeffs for Cubic
+    def __init__(self, num_segments: int = 512):
         super().__init__()
-        # The 'Warp' Matrix: Transforms the polynomial shape
-        # e.g., turning a flat line into a curve, or shifting phase.
-        self.warp = nn.Linear(embedding_dim, embedding_dim)
+        self.num_segments = num_segments
         
-        # [Restored V9] Initialization Physics
-        # Active Atoms (Q) start random (divergent)
-        # Passive Atoms (K/V) start as Identity (pass-through)
+        # The Template Curve (The Basis): A continuous spline of 'N' segments
+        self.template_coeffs = nn.Parameter(torch.randn(num_segments, 4))
+        
+        # The Modulator: Transforms input identity to warping energy
+        self.modulator = nn.Linear(4, 4)
+        
         self.init_mode = "identity" 
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # x shape: (..., 7) [Coeffs(4), Sigma, Mass, Pos]
+        # Input x: (Batch, M_segments, 7) [Coeffs(4), Meta(3)]
+        # We need to map M -> N (512)
+        
+        B, M, _ = x.shape
         coeffs = x[..., :4]
-        meta = x[..., 4:]
         
-        # Warp the coefficients (The Physics)
-        new_coeffs = self.warp(coeffs)
+        # 1. Modulation (Content)
+        # Extract the 'Flavor' of the input curve
+        flavor = self.modulator(coeffs) # (B, M, 4)
         
-        # Pass metadata through untouched (The Logistics)
-        return torch.cat([new_coeffs, meta], dim=-1)
+        # 2. Analytic Moment Projection (The Accordion)
+        # We need a Projection Matrix P that maps M input segments to N output segments.
+        # In a real run, P is calculated based on M and N (Integration of basis functions).
+        # Here we simulate the projection tensor: (M, N)
+        # If M=1, it broadcasts. If M=1024, it downsamples.
+        
+        # Dynamic P-Matrix generation (Placeholder for the analytic integral math)
+        # We assume a linear mapping of domains [-1, 1] -> [-1, 1]
+        if M == self.num_segments:
+             # Maintenance (1:1)
+             projected_flavor = flavor
+        else:
+             # Expansion or Reduction
+             # We perform a linear interpolation in the coefficient space (Approx of Moment Projection)
+             # Reshape to image-like for grid_sample or interpolate
+             # (B, 4, M) -> (B, 4, N)
+             flavor_t = flavor.transpose(1, 2)
+             projected_flavor_t = F.interpolate(flavor_t, size=self.num_segments, mode='linear', align_corners=True)
+             projected_flavor = projected_flavor_t.transpose(1, 2) # (B, N, 4)
+
+        # 3. Modulate the Template
+        # Template: (N, 4)
+        # Projected Flavor: (B, N, 4)
+        # Result: (B, N, 4)
+        warped_coeffs = self.template_coeffs.unsqueeze(0) * projected_flavor
+        
+        return warped_coeffs
 
 class Aperture:
     """[Restored V7/V9] Differentiable Window (Global -> Local)."""
@@ -122,95 +118,70 @@ class Aperture:
         self.sigma = 1e6
 
 # ============================================================
-# SECTION 3 — The Core Layer (Recursive Expression Tree)
+# SECTION 3 — The Core Layer (Recursive Expression Tree) [V10]
 # ============================================================
 
+class CubicProjector(nn.Module):
+    """[V10 Helper] Projects Degree-6 Interactions back to Degree-3."""
+    def __init__(self):
+        super().__init__()
+        # Fixed Projection Matrix (4x7)
+        self.register_buffer('proj_matrix', torch.randn(4, 7)) 
+
+    def forward(self, q_coeffs, k_coeffs):
+        # 1. Polynomial Convolution (Q * K) -> Degree 6
+        # 2. Projection (Deg 6 * Matrix) -> Degree 3
+        return q_coeffs # Placeholder for the math
+
 class LearnablePhi(nn.Module):
-    """
-    [V10 Energy Valve]
-    Learns how to normalize the 'Mass' (Energy) of an interaction.
-    
-    Modes (Learned via 'temperature' and 'shift'):
-    - Sigmoid-like: Independent Gating (Allows multiple features to pass).
-    - Tanh-like: Balanced Gating (Allows positive/negative interference).
-    - Linear-like: Pass-through (High risk, high reward).
-    """
+    """[V10 Energy Valve] Normalizes Mass (Energy)."""
     def __init__(self):
         super().__init__()
         self.scale = nn.Parameter(torch.tensor(1.0))
         self.shift = nn.Parameter(torch.tensor(0.0))
-        # Initializing slightly saturated to ensure stability at start
         self.tanh_gate = nn.Tanh() 
 
     def forward(self, energy_tensor: torch.Tensor) -> torch.Tensor:
-        # 1. Affine Transform (Learnable Range)
         x = (energy_tensor * self.scale) + self.shift
-        
-        # 2. Non-Linearity (The Valve)
-        # We use Tanh because wave interference can be destructive (negative).
-        # Standard Softmax is 0..1 (only constructive). 
-        # Tanh is -1..1 (constructive & destructive).
         return self.tanh_gate(x)
 
 class MixingNode(nn.Module):
+    """
+    [V10 Upgrade]
+    The Recursive Operator.
+    Executes 'Functional Convolution' (Interference).
+    """
     def __init__(self, children: List[Union[Atom, 'MixingNode']]):
         super().__init__()
         self.children = nn.ModuleList(children)
         self.projector = CubicProjector()
-        
-        # [V10] The Energy Governor
         self.phi = LearnablePhi() 
-        
-        # [V10] Fog of War Parameter
         self.fog_alpha = nn.Parameter(torch.tensor(0.5))
 
     def execute(self, stream: torch.Tensor):
-        # ... (Child execution logic same as before) ...
+        # 1. Recursive Execution
+        # Children return (Batch, Segments, 4)
+        q = self.children[0](stream) 
+        k = self.children[1](stream)
         
-        # 1. Extract Physics
-        q_c, q_sig, q_mass, q_pos = self._unpack(q)
-        k_c, k_sig, k_mass, k_pos = self._unpack(k)
+        # 2. Interaction (Superposition)
+        resonance_curve = self.projector(q, k)
         
-        # 2. Shape Resonance (The Curve Interaction)
-        # Result: A Cubic Curve representing the 'Flavor' of the interaction
-        resonance_curve = self.projector(q_c, k_c)
-        
-        # 3. Fog of War (The Uncertainty)
-        dist = torch.abs(q_pos - k_pos)
-        interaction_sigma = torch.sqrt(q_sig**2 + k_sig**2 + self.fog_alpha * torch.log(1 + dist))
-        
-        # 4. Raw Energy Calculation
-        # "How strong is this interaction before normalization?"
-        raw_energy = (q_mass * k_mass) / (interaction_sigma + 1e-6)
-        
-        # 5. Continuous Normalization (The Phi Valve)
-        # We normalize the Energy, NOT the Curve coefficients.
-        normalized_weight = self.phi(raw_energy)
-        
-        # 6. Apply to Value
-        if len(self.children) > 2:
-            v = self.children[2](stream)
-            # Convolve: Result Curve = (Resonance * V_Shape) * Phi_Weight
-            return self._apply_resonance(resonance_curve, normalized_weight, v)
-        else:
-            # Output: Interaction Curve * Phi_Weight
-            # We broadcast the scalar weight across the 4 coefficients
-            return resonance_curve * normalized_weight.unsqueeze(-1)
-            
+        # 3. Output
+        return resonance_curve
+
 class Core:
     """[V9.2 Structure] Constructs the recursive Mixing Tree."""
     def __init__(self, embedding_dim: int):
-        # Default Topology: [[Q, K], V]
+        # embedding_dim = num_segments
         q_atom = Atom(embedding_dim)
         k_atom = Atom(embedding_dim)
         v_atom = Atom(embedding_dim)
-        
         attn_node = MixingNode([q_atom, k_atom])
         self.root = MixingNode([attn_node, v_atom])
 
     def forward(self, x):
         return self.root.execute(x)
-
 
 # ============================================================
 # SECTION 4 — Logistics & Economy (Restored)
@@ -345,23 +316,19 @@ class Module:
 # ============================================================
 # SECTION 6 — The Mind Layer (Bicameral & Meta-Context)
 # ============================================================
-# [V10 Update: Replacing UniversalWorm with PolyTokenizer]
+
 class PolyTokenizer:
     """
     [V10 Physics Engine]
     Recursively fits Cubic Polynomials to Z-Order streams.
-    Converts Raw Data -> Ragged Stream of Functional Tokens.
+    Splits based on Structural Residuals (Texture vs Geometry).
     """
     def __init__(self, mse_threshold: float = 0.01):
         self.mse_threshold = mse_threshold
-        # Pre-calculated matrices for fast least-squares fitting would live here.
 
     def tokenize(self, signal: torch.Tensor) -> torch.Tensor:
-        # 1. Recursive Fit (Mean -> Line -> Cubic)
-        # 2. Structure Check (Autocorrelation of residuals)
-        # 3. Output: Tensor of shape (N_tokens, 7) 
-        #    [c3, c2, c1, c0, sigma, mass, pos]
-        pass 
+        # Placeholder for V3 Logic
+        return signal 
 
 class Interface:
     """[V10] Universal Parametric Gateway."""
@@ -369,8 +336,6 @@ class Interface:
         self.tokenizer = PolyTokenizer()
         
     def linearize(self, data: Any) -> Dict:
-        # Stream is now a sequence of FUNCTIONS, not vectors.
-        # Returns the Packed Stream for the Functional Core.
         return {"functional_stream": self.tokenizer.tokenize(data)}
 
 class Mind:
