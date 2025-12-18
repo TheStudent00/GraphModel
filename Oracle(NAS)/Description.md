@@ -15,10 +15,11 @@ This description asserts IP protection over:
 - **LossComplexity (The Relativistic Barrier):** A regulatory energy model where complexity cost asymptotes to infinity near the limit.
 - **Recursive Expression Engine:** A grammatical compute model replacing fixed topologies with learnable syntax trees (The Pipe).
 - **Parametric Functional Physics:** A computational substrate where "Attention" is redefined as the **Polynomial Convolution** (Superposition) of continuous signal shapes.
-- **Fog of War (Entropy Gating):** A physical model of position where distance injects **Variance** ($\sigma$) into interactions, naturally dampening long-range signals without fixed context windows.
-- **Parametric Poly-Tokenization:** A recursive signal compression algorithm that treats Text (Micro) and Images (Macro) as variable-length cubic segments based on structural residuals.
-- **The Functional Token:** The fundamental unit of information, defined as a **Cubic Bundle** `[Shape, Sigma, Mass, Position]`, replacing discrete feature vectors.
-- **Learnable Phi (Energy Valve):** A continuous normalization gate that regulates the conservation of **Mass** (Energy) during wave interference.
+- **Analytic Moment Projection (The Accordion):** A method of embedding variable-length token streams ($M$ segments) into fixed-length Feature Templates ($N$ segments) via integral moment preservation, handling Expansion, Maintenance, and Reduction continuously.
+- **Fog of War (Entropy Gating):** A physical model of position where distance injects **Variance** ($\sigma$) into interactions, naturally dampening long-range signals.
+- **Parametric Poly-Tokenization:** A recursive signal compression algorithm that treats Text (Micro) and Images (Macro) as variable-length cubic segments.
+- **The Functional Token:** The fundamental unit of information `[Shape, Sigma, Mass, Position]`.
+- **Learnable Phi (Energy Valve):** A continuous normalization gate for Mass/Energy.
 - **Impedance Regulation:** Connection costs based on Fractal Tree Distance.
 - **Bicameral Autopoiesis:** Active (Read-Only) vs. Reflective (Write-Access) Minds.
 
@@ -80,11 +81,12 @@ The Core preserves the recursive "Pipe" topology of V9 but upgrades the interact
     * **Fog of War (Entropy Gating):** Instead of rotary embeddings, the node injects **Distance-Based Variance** ($\sigma^2 \propto \log(\Delta x)$) into the interaction. This physically dampens long-range signals unless their Mass (Amplitude) is high enough to pierce the uncertainty.
 
 ## 5.2 The Atom (Parametric Warp Unit)
-The Atom remains the fundamental leaf node, but its role shifts from Vector Projection to **Signal Warping**.
-* **Action:** It applies a learnable linear transform to the **Coefficients** of the input polynomial, effectively "bending" the curve (changing its shape/phase) before interaction.
-* **Initialization:**
-    * **Active Atoms (Q):** Initialized to create divergent shapes (High warping).
-    * **Passive Atoms (K/V):** Initialized as Identity (Pass-through) to preserve signal fidelity.
+The Atom remains the fundamental leaf node, but its role shifts from Vector Projection to **Analytic Moment Projection (The Accordion)**.
+* **The Template Curve:** The Atom contains a learnable, multi-segment continuous spline ($N$ segments) acting as the Embedding Space.
+* **The Projection:** It maps the Input Token stream ($M$ segments) onto the Template Basis ($N$ segments) using **Integral Moment Preservation**.
+    * **Expansion (M < N):** The input signal is smoothly interpolated ("stretched") to modulate the larger template.
+    * **Reduction (M > N):** The input signal is analytically downsampled ("squished"), effectively filtering high-frequency details (Texture) into the lower-frequency domain of the template.
+    * **Modulation:** The projected input signal modulates the Template Coefficients, creating a **Warped Feature Map** that preserves continuity and differentiability.
 
 ## 5.3 Learnable Phi (The Energy Valve)
 The Continuous Normalization function (`Phi`) now acts as a **Conservation Governor**.
