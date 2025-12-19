@@ -184,59 +184,92 @@ class Core:
         return self.root.execute(x)
 
 # ============================================================
-# SECTION 4 — Logistics & Economy (Restored)
+# SECTION 4 — Logistics & Ecology (V10 Update)
 # ============================================================
+
+class ResonanceRegistry:
+    """
+    [V10 Ecosystem] The 'Mycelial Network'.
+    Stores the Spectral Fingerprints of active modules to facilitate
+    Content-Based Routing (Chemotaxis) rather than just Address-Based Routing.
+    """
+    def __init__(self, embedding_dim: int):
+        # Maps ModuleID -> Signature (Mean Successful Input Coefficients)
+        # We store this sparsely or as a low-rank approximation.
+        self.signatures: Dict[str, torch.Tensor] = {}
+        
+    def register_signature(self, module_id: str, signature: torch.Tensor):
+        self.signatures[module_id] = signature.detach().mean(dim=0) # Store average profile
+
+    def find_resonance(self, signal_sample: torch.Tensor, top_k: int = 5) -> List[Tuple[str, float]]:
+        """
+        Monte Carlo Routing (The Sniff Test).
+        Compares a random sample of the signal against registered signatures.
+        Returns the top_k modules that 'resonate' with this signal.
+        """
+        results = []
+        for mod_id, sig in self.signatures.items():
+            # Ecological Resonance: Non-Linear Match (Key-and-Lock)
+            # We only care about the peaks (Max Pooling logic), not the average.
+            # Simple dot product on the sample for speed.
+            resonance = torch.sum(signal_sample * sig) 
+            results.append((mod_id, float(resonance)))
+        
+        # Return sorted best matches
+        return sorted(results, key=lambda x: x[1], reverse=True)[:top_k]
 
 class ImpedanceCurve:
     """
-    [Restored from V7]
-    Defines connection cost based on Tree Distance.
-    Regulates graph topology to prevent 'Small World' collapse.
+    [V10 Update] Defines connection cost (Activation Energy).
+    Cost = (Distance^2) / Resonance
+    High Resonance lowers the barrier to connection.
     """
-    def __init__(self, max_distance: int = 33):
-        self.curve_knots = np.linspace(0, 10, 8) # Monotone Spline
+    def __init__(self):
+        self.base_impedance = 0.1
         
-    def get_cost(self, sender_node: Module, receiver_node: Module) -> float:
-        # [V9.1 Logic] Calculate Tree Distance in the Fractal Hierarchy
-        # dist = tree_distance(sender_node, receiver_node)
-        # Placeholder distance:
-        dist = abs(sender_node.level - receiver_node.level)
-        
-        # Cost increases with distance (Impedance)
-        return float(dist ** 2) * 0.1
+    def get_activation_energy(self, sender: Module, receiver: Module, resonance: float) -> float:
+        dist = abs(sender.level - receiver.level)
+        # Ecological Physics: If resonance is high, distance matters less.
+        # If resonance is 0, cost is infinite (Barrier).
+        safe_resonance = max(resonance, 1e-3)
+        return (float(dist ** 2) * self.base_impedance) / safe_resonance
 
 class Logistics:
     """
-    [Restored from V7/V9]
-    Manages the Economy: Sender-Pays-Time / Receiver-Pays-Space.
-    Manages Rhythm: Internal Clock & ETA.
+    [V10 Ecosystem] Manages the Metabolic Rhythms and Signaling.
     """
-    def __init__(self):
+    def __init__(self, embedding_dim: int = 4):
         self.clock = 0
-        self.message_queue = deque()
-        self.temporal_error_history = [] # For Rhythm gradients
-    
+        self.registry = ResonanceRegistry(embedding_dim)
+        
     def tick(self):
         self.clock += 1
-        
-    def calculate_eta(self, path_latency: float) -> int:
-        return self.clock + int(np.ceil(path_latency))
-
-    def register_arrival(self, predicted_eta: int):
-        """[V6 Rhythm Logic] Calculate temporal error for gradient."""
-        actual_arrival = self.clock
-        # Penalize Late Arrival (Inefficiency) AND Early Arrival (Rhythm Break)
-        error = (actual_arrival - predicted_eta) ** 2
-        self.temporal_error_history.append(error)
 
 class Connector:
     """
-    [Restored V7] Receiver-Centric Input Port.
+    [V10 Synapse] Receiver-Centric Input Port.
+    Maintains the 'Bond' between two modules.
+    Tracks the health (Resonance) of the connection.
     """
-    def __init__(self, embedding_dim: int):
+    def __init__(self, sender_id: str, embedding_dim: int):
+        self.sender_id = sender_id
         self.buffer = deque(maxlen=16) 
-        self.alignment_mode = "DualAxisSpectral" # [Restored V7]
+        
+        # [V10 Ecological State]
+        # We cache the resonance so we don't re-compute it every tick.
+        # It decays over time if not reinforced (Hebbian forgetting).
+        self.current_resonance = 0.5 
         self.impedance_cost = 0.0
+        
+    def absorb(self, packet: torch.Tensor, resonance_hit: float):
+        """
+        Receives data and updates the health of the synapse.
+        """
+        self.buffer.append(packet)
+        
+        # Moving Average of Resonance (Smooths out noise)
+        # If the new packet resonates well, the connection strengthens.
+        self.current_resonance = 0.9 * self.current_resonance + 0.1 * resonance_hit
 
 # ============================================================
 # SECTION 5 — The Module Layer (Recursive Agent)
@@ -249,67 +282,62 @@ class Trinity:
         self.state = Core(embedding_dim)
         self.service = Core(embedding_dim)
 
-    def cycle(self, x: np.ndarray) -> np.ndarray:
+    def cycle(self, x: torch.Tensor) -> torch.Tensor:
         c = self.context.forward(x)
         s = self.state.forward(c)
         return self.service.forward(s)
 
 class Module:
     """
-    [V9 Integrated]
-    Recursive Container. Manages internal sparsity via sub_modules.
-    Enforces LossComplexity (Relativistic Barrier).
+    [V10 Ecosystem Node]
+    Recursive Organism. Maintains Homeostasis via LossComplexity.
+    Advertises its 'Spectral Fingerprint' to the Registry.
     """
     def __init__(self, module_id: str, level: int, embedding_dim: int = 256):
         self.id = module_id
         self.level = level
         self.is_virtual = True
+        self.embedding_dim = embedding_dim
         
-        # [V9] Internal Sparsity (Strictly Private)
-        # Recursive definition: A Module contains Modules.
         self.sub_modules: List[Module] = []
-        
-        # [V9] Local Compute
         self.trinity = Trinity(embedding_dim)
-        
-        # [V6/V9] Relativistic Budget Holder
-        # Aggregates complexity of Self + Realized Children
         self.complexity = LossComplexity() 
-        
-        # [V7] External Connectivity
         self.connectors: Dict[str, Connector] = {}
+        
+        # [V10] Ecological Memory
+        # Running average of successful inputs (The Signature)
+        self.signature_buffer = deque(maxlen=32)
 
-    def ensure_connector(self, sender: Module, impedance_curve: ImpedanceCurve):
-        """
-        Establishes connection governed by Impedance Cost (Space Tokens).
-        """
-        if sender.id not in self.connectors:
-            cost = impedance_curve.get_cost(sender, self)
-            # Check if we can afford the Space Cost (Relativistic Barrier)
-            if self.complexity.distribute_tokens(amount_space=cost, amount_time=0):
-                self.connectors[sender.id] = Connector(256)
-                self.connectors[sender.id].impedance_cost = cost
+    def update_signature(self, input_signal: torch.Tensor):
+        """Called when the module successfully processes a signal (High Mass Output)."""
+        # Store sample for registry update
+        # We can use reservoir sampling here for efficiency
+        if np.random.rand() < 0.1: # 10% update rate
+             self.signature_buffer.append(input_signal.detach().mean(dim=0))
+
+    def publish_signature(self, logistics: Logistics):
+        """Periodically pushes identity to the Mycelial Network."""
+        if self.signature_buffer:
+            # Average the buffer to get stable signature
+            avg_sig = torch.stack(list(self.signature_buffer)).mean(dim=0)
+            logistics.registry.register_signature(self.id, avg_sig)
 
     def process(self, signal: Any) -> Any:
-        """
-        Recursive Execution Flow.
-        """
         if self.is_virtual: 
-            return signal # Zero cost, identity pass-through
+            return signal 
             
-        # 1. Distribute Complexity to Sub-Modules (Internal Sparsity)
-        # If a sub-module is realized, it consumes part of THIS module's budget.
         if self.sub_modules:
             for sub in self.sub_modules:
-                # Sub-modules communicate only with Parent, not outside.
                 signal = sub.process(signal)
         
-        # 2. Local Cycle
         output = self.trinity.cycle(signal)
         
-        # 3. Update Time Complexity (Sender-Pays-Time)
-        self.complexity.current_time += 1.0 
+        # [V10] Learning Loop: If output is 'Strong' (High Mass), learn the input shape.
+        # This reinforces the module's specialized role in the ecosystem.
+        # (Placeholder logic for mass check)
+        self.update_signature(signal) 
         
+        self.complexity.current_time += 1.0 
         return output
 
 
