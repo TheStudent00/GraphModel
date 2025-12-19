@@ -52,23 +52,25 @@ A Module is a self-similar container acting as both a computational unit and a s
 
 ---
 
-# 4. The Economic Physics (Regulation)
+# 4. The Ecological Physics (Regulation)
 
 ## 4.1 LossComplexity (The Relativistic Barrier)
-To prevent unbounded expansion, every Module enforces a **Relativistic Barrier** on its total complexity mass (Self + Realized Sub-Modules).
+To prevent unbounded expansion, every Module enforces a **Relativistic Barrier** on its total complexity mass. This acts as the **Metabolic Limit** of the organism.
 * **The Barrier Function:** $Cost \propto \frac{1}{\sqrt{1 - (C/C_{limit})^2}}$.
-* **Effect:** As a module approaches its complexity limit, the "cost" of adding a new atom or realizing a sub-module approaches infinity. This forces the optimization landscape to prioritize **Compression** and **Sparsity** over expansion.
+* **Effect:** As a module approaches its metabolic limit, the energy cost of adding new structure approaches infinity, forcing the system to optimize for **Sparsity** and **Symbiosis**.
 
-## 4.2 Impedance (Topological Regulation)
-Connections between Public Modules are regulated by the **Impedance Curve**.
-* **Tree Distance:** Cost is calculated based on the shortest path in the recursion tree ($\Delta L$).
-* **Function:** $Cost(\Delta L)$ is a learnable monotone spline. This prevents "Small World" collapse by making long-range or cross-branch connections expensive (high Space token cost).
+## 4.2 Impedance & Resonance (Chemotaxis Routing)
+Connections are not hard-wired; they are formed dynamically based on **Ecological Resonance**.
+* **Spectral Fingerprinting:** Each Module actively advertises its "Signature" (the shape of data it processes best) to the global registry.
+* **Monte Carlo Routing (The Sniff Test):** To conserve energy, the Logistics layer uses **Statistical Sampling** to check for resonance. It compares a random subset of the signal against module signatures.
+* **Activation Energy:** The cost to connect is defined by $Energy = \frac{Distance^2}{Resonance}$.
+    * **High Resonance:** The signal "fits" the receiver's receptor. The activation energy drops, allowing effortless connection.
+    * **Low Resonance:** The signal is noise to the receiver. The energy barrier remains high, preventing inefficient connections.
 
-## 4.3 Internal Rhythm (Temporal Regulation)
-The system optimizes for **Isochrony** (predictable timing).
-* **ETA Prediction:** Modules predict response latency.
-* **Temporal Error:** Deviations (Late or Early) generate gradients.
-* **Phantom Latency:** Virtual modules possess a small non-zero latency constant to prevent infinite temporal error derivatives during the Virtual $\to$ Real transition.
+## 4.3 Internal Rhythm (Homeostasis)
+The system optimizes for **Isochrony** (predictable timing) to maintain systemic homeostasis.
+* **Temporal Error:** Deviations generate gradients that tune the internal clocks of the modules.
+
 
 ---
 
