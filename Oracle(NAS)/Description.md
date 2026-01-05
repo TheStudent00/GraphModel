@@ -32,8 +32,8 @@ The Graph Model is a **Fractal Organism**. It is composed of **Minds** (Hemisphe
 Computationally, the system abandons fixed layers in favor of a **Recursive Expression Engine**. Instead of a static architecture, Modules parse learnable syntax trees, executing a **Sequential Reduction** (Pipe) on inputs. To handle unbounded streams, it utilizes **Cylindrical Time**, mapping linear sequence data into a hierarchical spiral (Day/Hour).
 
 The system is regulated by a **Dual-Ecology**:
-1.  **Internal Ecology (LossComplexity):** A relativistic budget constraint that governs the expansion of the fractal (Parent distributes tokens to Children).
-2.  **External Ecology (Logistics):** A market mechanism that governs the flow of information between modules (Sender pays Time, Receiver pays Space).
+1.  **Internal Ecology (LossComplexity):** A relativistic budget constraint that governs the expansion of the fractal (Objects distribute tokens to other Objects).
+2.  **External Ecology (Logistics):** A mechanism that governs the flow of information between modules (Sender pays Time, Receiver pays Space).
 
 ---
 
