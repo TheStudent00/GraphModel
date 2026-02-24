@@ -1,7 +1,7 @@
 ---
 title: "Detailed Specification: Fractal Pyramid Compression and Light Cone Aperture"
 project: "GraphModel"
-author: "D."
+author: "Student"
 date: "2026-02-21"
 status: "Architecture Specification / Theoretical Core - Expansion"
 tags: 
