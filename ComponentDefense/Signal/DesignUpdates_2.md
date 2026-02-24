@@ -1,7 +1,7 @@
----
+```yaml
 title: "Intellectual Property Specification: Fractal-Aperture Spectral Transformer (FAST) & Hybrid Routing"
 project: "GraphModel"
-author: "D."
+author: "Student"
 date: "2026-02-23"
 status: "Architecture Specification / Theoretical Core - V2"
 tags: 
@@ -11,7 +11,7 @@ tags:
   - hybrid compression
   - symmetric padding
   - abstract dimension reduction
----
+```
 
 # 1. Executive Summary
 
