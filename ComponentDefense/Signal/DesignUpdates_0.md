@@ -1,5 +1,5 @@
 ---
-
+```yaml
 title: "Intellectual Property Specification: Fractal-Aperture Spectral Transformer (FAST) & Vision Processing"
 project: "GraphModel"
 author: "Student"
@@ -12,7 +12,7 @@ tags:
   - hierarchical attention
   - vision pre-processing
   - mathematical routing
-
+```
 ---
 
 # 1. Executive Summary
