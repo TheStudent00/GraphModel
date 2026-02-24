@@ -1,4 +1,4 @@
----
+```yaml
 title: "Detailed Specification: Fractal Pyramid Compression and Light Cone Aperture"
 project: "GraphModel"
 author: "Student"
@@ -9,7 +9,7 @@ tags:
   - information propagation
   - light cone aperture
   - structural fog
----
+```
 
 # 6. Detailed Specification: Fractal Pyramid Compression and Light Cone Aperture
 
